@@ -1,0 +1,542 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent: #C74629;
+  --bg: #F1EDE3;
+  --text: #261F1B;
+  --muted: #8C6355;
+  --surface: #FFFEF5;
+  --earth: #A08420;
+  --slate: #3F4820;
+  --moss: #5A7252;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 300;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ヘッダー */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  flex-shrink: 0;
+}
+
+.header-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+}
+
+.burger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+}
+
+.burger-btn span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--text);
+  transition: 0.2s;
+}
+
+/* ドロワー */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+  z-index: 10;
+}
+
+.drawer-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100dvh;
+  background: var(--surface);
+  border-left: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  transform: translateX(100%);
+  transition: transform 0.25s;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  padding: 60px 0 40px;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-nav {
+  list-style: none;
+  flex: 1;
+}
+
+.drawer-nav li a {
+  display: block;
+  padding: 16px 32px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  transition: color 0.2s;
+}
+
+.drawer-nav li a:hover { color: var(--accent); }
+
+.logout-btn {
+  margin: 0 32px;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.logout-btn:hover { background: var(--accent); color: var(--surface); }
+
+/* メイン */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* カレンダー */
+.calendar-section {
+  padding: 16px 16px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+}
+
+.calendar-header {
+  margin-bottom: 12px;
+}
+
+.calendar-month {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.3rem;
+  letter-spacing: 0.1em;
+  color: var(--text);
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.calendar-dow {
+  text-align: center;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.cal-sat { color: var(--moss); }
+.cal-sun { color: var(--accent); }
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0;
+  cursor: pointer;
+  position: relative;
+  border-radius: 0;
+}
+
+.cal-day-num {
+  font-size: 0.85rem;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.15s;
+}
+
+.cal-day.today .cal-day-num {
+  background: var(--accent);
+  color: var(--surface);
+  border-radius: 50%;
+}
+
+.cal-day.selected .cal-day-num {
+  background: color-mix(in srgb, var(--earth) 25%, transparent);
+  border-radius: 50%;
+}
+
+.cal-day.today.selected .cal-day-num {
+  background: var(--accent);
+}
+
+.cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--earth);
+  margin-top: 2px;
+}
+
+.cal-day.empty { pointer-events: none; }
+.cal-day-sat .cal-day-num { color: var(--moss); }
+.cal-day-sun .cal-day-num { color: var(--accent); }
+.cal-day.today .cal-day-num,
+.cal-day.today.cal-day-sat .cal-day-num,
+.cal-day.today.cal-day-sun .cal-day-num { color: var(--surface); }
+
+/* タスクセクション */
+.task-section {
+  flex: 1;
+  padding: 16px;
+}
+
+.task-date-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.task-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-left: 2px solid var(--earth);
+  cursor: pointer;
+  transition: 0.15s;
+}
+
+.task-item:hover { border-left-color: var(--accent); }
+
+.task-item.done { opacity: 0.45; }
+.task-item.done .task-title { text-decoration: line-through; }
+
+.task-check {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.task-title {
+  font-size: 0.9rem;
+  flex: 1;
+}
+
+.task-empty {
+  font-size: 0.8rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  display: none;
+}
+
+/* フッター */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 56px;
+  background: var(--surface);
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  flex-shrink: 0;
+}
+
+.footer-btn {
+  background: none;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 8px 12px;
+  transition: color 0.2s;
+}
+
+.footer-btn:hover { color: var(--accent); }
+
+.footer-btn--hoy {
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 6px 16px;
+}
+
+.footer-btn--add {
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+
+/* 年間オーバーレイ */
+.year-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 20;
+  transform: translateY(100%);
+  transition: transform 0.3s;
+  overflow-y: auto;
+}
+
+.year-overlay.open { transform: translateY(0); }
+
+.year-overlay-inner {
+  padding: 24px 16px 40px;
+  position: relative;
+}
+
+.year-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.year-month-block { }
+
+.year-month-name {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.year-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+}
+
+.year-mini-day {
+  text-align: center;
+  font-size: 0.55rem;
+  padding: 2px 0;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.year-mini-day.today { color: var(--accent); font-weight: 400; }
+.year-mini-day.has-task { text-decoration: underline; }
+.year-mini-dow { color: var(--muted); font-size: 0.5rem; text-align: center; }
+
+/* ポップアップ共通 */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.5);
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.popup-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.popup {
+  background: var(--surface);
+  width: 100%;
+  padding: 32px 24px 40px;
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  position: relative;
+  transform: translateY(40px);
+  transition: transform 0.25s;
+}
+
+.popup-overlay.open .popup {
+  transform: translateY(0);
+}
+
+.popup-close {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.popup-edit {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.popup-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.3rem;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.popup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.popup-form input,
+.popup-form textarea {
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 0;
+  padding: 12px 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+}
+
+.popup-form textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.popup-form input:focus,
+.popup-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.popup-save {
+  width: 100%;
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  padding: 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.popup-save:hover { opacity: 0.85; }
+
+.popup-detail-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  font-weight: 300;
+  margin: 8px 0 16px;
+}
+
+.popup-detail-memo {
+  font-size: 0.9rem;
+  line-height: 1.8;
+  color: var(--text);
+  margin-bottom: 12px;
+  white-space: pre-wrap;
+}
+
+.popup-detail-url {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--earth);
+  word-break: break-all;
+  margin-bottom: 24px;
+  text-decoration: underline;
+}
+
+.popup-detail-url:empty { display: none; }
+
+.popup-delete {
+  width: 100%;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.popup-delete:hover { background: var(--accent); color: var(--surface); }
