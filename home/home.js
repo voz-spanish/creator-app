@@ -3,14 +3,12 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const { createClient } = supabase
 const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-// ログインチェック
 async function checkAuth() {
   const { data: { session } } = await db.auth.getSession()
   if (!session) window.location.href = '../login/login.html'
   return session
 }
 
-// 状態管理
 let today = new Date()
 let currentYear = today.getFullYear()
 let currentMonth = today.getMonth()
@@ -24,13 +22,11 @@ function formatDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 }
 
-// タスク取得
 async function fetchTasks() {
   const { data, error } = await db.from('tasks').select('*').order('date')
   if (!error) allTasks = data
 }
 
-// カレンダー描画
 function renderCalendar() {
   document.getElementById('calendar-month').textContent = MONTHS_ES[currentMonth]
   document.getElementById('btn-year').textContent = currentYear
@@ -41,10 +37,8 @@ function renderCalendar() {
   const firstDay = new Date(currentYear, currentMonth, 1).getDay()
   const offset = firstDay === 0 ? 6 : firstDay - 1
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
-
   const taskDates = new Set(allTasks.map(t => t.date))
 
-  // 空白セル
   for (let i = 0; i < offset; i++) {
     const el = document.createElement('div')
     el.className = 'cal-day empty'
@@ -63,23 +57,19 @@ function renderCalendar() {
     if (dateStr === selectedDate) el.classList.add('selected')
 
     el.innerHTML = `<div class="cal-day-num">${d}</div>`
-    if (taskDates.has(dateStr)) {
-      el.innerHTML += `<div class="cal-dot"></div>`
-    }
+    if (taskDates.has(dateStr)) el.innerHTML += `<div class="cal-dot"></div>`
 
     el.addEventListener('click', () => selectDate(dateStr))
     days.appendChild(el)
   }
 }
 
-// 日付選択
 function selectDate(dateStr) {
   selectedDate = dateStr
   renderCalendar()
   renderTasks()
 }
 
-// タスク一覧描画
 function renderTasks() {
   const list = document.getElementById('task-list')
   const empty = document.getElementById('task-empty')
@@ -87,8 +77,9 @@ function renderTasks() {
 
   const [y, m, d] = selectedDate.split('-')
   const dateObj = new Date(y, m - 1, d)
-  const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }
-  label.textContent = dateObj.toLocaleDateString('ja-JP', options)
+  label.textContent = dateObj.toLocaleDateString('ja-JP', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
+  })
 
   const filtered = allTasks.filter(t => t.date === selectedDate)
   list.innerHTML = ''
@@ -102,30 +93,25 @@ function renderTasks() {
   filtered.forEach(task => {
     const li = document.createElement('li')
     li.className = `task-item${task.completed ? ' done' : ''}`
-
     li.innerHTML = `
       <div class="task-check" data-id="${task.id}">${task.completed ? '✓' : ''}</div>
       <span class="task-title">${task.title}</span>
     `
-
     li.querySelector('.task-check').addEventListener('click', async (e) => {
       e.stopPropagation()
       await toggleComplete(task.id, !task.completed)
     })
-
     li.addEventListener('click', () => openDetail(task))
     list.appendChild(li)
   })
 }
 
-// 完了トグル
 async function toggleComplete(id, completed) {
   await db.from('tasks').update({ completed }).eq('id', id)
   await fetchTasks()
   renderTasks()
 }
 
-// 詳細ポップアップ
 function openDetail(task) {
   document.getElementById('popup-detail-title').textContent = task.title
   document.getElementById('popup-detail-memo').textContent = task.memo || ''
@@ -149,19 +135,21 @@ function openDetail(task) {
   openPopup('popup-detail-overlay')
 }
 
-// 編集ポップアップ
 function openEdit(task) {
   document.getElementById('input-title').value = task.title
   document.getElementById('input-memo').value = task.memo || ''
   document.getElementById('input-url').value = task.url || ''
+  document.getElementById('input-date').value = task.date
 
   document.getElementById('popup-save').onclick = async () => {
     const title = document.getElementById('input-title').value.trim()
-    if (!title) return
+    const date = document.getElementById('input-date').value
+    if (!title || !date) return
     await db.from('tasks').update({
       title,
       memo: document.getElementById('input-memo').value,
-      url: document.getElementById('input-url').value
+      url: document.getElementById('input-url').value,
+      date
     }).eq('id', task.id)
     closePopup('popup-add-overlay')
     await fetchTasks()
@@ -172,24 +160,34 @@ function openEdit(task) {
   openPopup('popup-add-overlay')
 }
 
-// タスク追加
 function initAddPopup() {
   document.getElementById('btn-add').addEventListener('click', () => {
     document.getElementById('input-title').value = ''
     document.getElementById('input-memo').value = ''
     document.getElementById('input-url').value = ''
+    document.getElementById('input-date').value = selectedDate
 
     document.getElementById('popup-save').onclick = async () => {
       const title = document.getElementById('input-title').value.trim()
-      if (!title) return
+      const date = document.getElementById('input-date').value
+      if (!title || !date) return
+
       const { data: { session } } = await db.auth.getSession()
-      await db.from('tasks').insert({
+      if (!session) return
+
+      const { error } = await db.from('tasks').insert({
         title,
         memo: document.getElementById('input-memo').value,
         url: document.getElementById('input-url').value,
-        date: selectedDate,
+        date,
         user_id: session.user.id
       })
+
+      if (error) {
+        console.error('保存エラー:', error)
+        return
+      }
+
       closePopup('popup-add-overlay')
       await fetchTasks()
       renderCalendar()
@@ -200,15 +198,9 @@ function initAddPopup() {
   })
 }
 
-// ポップアップ開閉
-function openPopup(id) {
-  document.getElementById(id).classList.add('open')
-}
-function closePopup(id) {
-  document.getElementById(id).classList.remove('open')
-}
+function openPopup(id) { document.getElementById(id).classList.add('open') }
+function closePopup(id) { document.getElementById(id).classList.remove('open') }
 
-// 年間カレンダー
 function renderYearOverlay() {
   const grid = document.getElementById('year-grid')
   grid.innerHTML = ''
@@ -217,21 +209,18 @@ function renderYearOverlay() {
   MONTHS_ES.forEach((name, mi) => {
     const block = document.createElement('div')
     block.className = 'year-month-block'
-
     const daysInMonth = new Date(currentYear, mi + 1, 0).getDate()
     const firstDay = new Date(currentYear, mi, 1).getDay()
     const offset = firstDay === 0 ? 6 : firstDay - 1
 
     let html = `<div class="year-month-name">${name}</div><div class="year-mini-grid">`
-    ;['L','M','M','J','V','S','D'].forEach(d => {
-      html += `<div class="year-mini-dow">${d}</div>`
-    })
+    ;['L','M','M','J','V','S','D'].forEach(d => { html += `<div class="year-mini-dow">${d}</div>` })
     for (let i = 0; i < offset; i++) html += `<div></div>`
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${currentYear}-${String(mi+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       const isToday = dateStr === formatDate(today)
       const hasTask = taskDates.has(dateStr)
-      html += `<div class="year-mini-day${isToday ? ' today' : ''}${hasTask ? ' has-task' : ''}" data-date="${dateStr}">${d}</div>`
+      html += `<div class="year-mini-day${isToday?' today':''}${hasTask?' has-task':''}" data-date="${dateStr}">${d}</div>`
     }
     html += '</div>'
     block.innerHTML = html
@@ -245,7 +234,6 @@ function renderYearOverlay() {
         closeYearOverlay()
       })
     })
-
     grid.appendChild(block)
   })
 }
@@ -254,8 +242,6 @@ function closeYearOverlay() {
   document.getElementById('year-overlay').classList.remove('open')
 }
 
-// スクロールで月切り替え
-let scrolling = false
 document.addEventListener('DOMContentLoaded', () => {
   const calSection = document.querySelector('.calendar-section')
   calSection.addEventListener('wheel', (e) => {
@@ -272,8 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCalendar()
   }, { passive: true })
 })
+let scrolling = false
 
-// ドロワー
 document.getElementById('burger-btn').addEventListener('click', () => {
   document.getElementById('drawer').classList.toggle('open')
   document.getElementById('drawer-overlay').classList.toggle('open')
@@ -282,32 +268,23 @@ document.getElementById('drawer-overlay').addEventListener('click', () => {
   document.getElementById('drawer').classList.remove('open')
   document.getElementById('drawer-overlay').classList.remove('open')
 })
-
-// ログアウト
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await db.auth.signOut()
   window.location.href = '../login/login.html'
 })
-
-// HOYボタン
 document.getElementById('btn-hoy').addEventListener('click', () => {
   currentYear = today.getFullYear()
   currentMonth = today.getMonth()
   selectDate(formatDate(today))
 })
-
-// 年間ボタン
 document.getElementById('btn-year').addEventListener('click', () => {
   renderYearOverlay()
   document.getElementById('year-overlay').classList.add('open')
 })
 document.getElementById('year-close').addEventListener('click', closeYearOverlay)
-
-// ポップアップを閉じる
 document.getElementById('popup-add-close').addEventListener('click', () => closePopup('popup-add-overlay'))
 document.getElementById('popup-detail-close').addEventListener('click', () => closePopup('popup-detail-overlay'))
 
-// 起動
 ;(async () => {
   await checkAuth()
   await fetchTasks()
