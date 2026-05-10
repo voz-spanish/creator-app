@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アナウンス作成</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="new.css">
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <span class="header-logo">Novedades</span>
+    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ドロワー -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <nav class="drawer" id="drawer">
+    <ul class="drawer-nav">
+      <li><a href="../../../home/home.html">ホーム</a></li>
+      <li class="drawer-divider"></li>
+      <li><a href="../../../lesson/index.html">レッスン</a></li>
+      <li><a href="../../../flashcard/index.html">フラッシュカード</a></li>
+      <li><a href="../../../dictionary/index.html">辞書</a></li>
+      <li><a href="../../../question/index.html">質問</a></li>
+      <li><a href="../../../announce/index.html">アナウンス</a></li>
+    </ul>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </nav>
+
+  <!-- メイン -->
+  <main class="main">
+    <div class="form-wrap">
+
+      <div class="page-header">
+        <a class="back-link" href="../index.html">← 一覧に戻る</a>
+        <h1 class="page-title">新規アナウンス</h1>
+      </div>
+
+      <div class="field">
+        <label for="input-title">タイトル</label>
+        <input type="text" id="input-title" placeholder="タイトルを入力" />
+      </div>
+
+      <div class="field">
+        <label for="input-content">内容</label>
+        <textarea id="input-content" placeholder="内容を入力"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="input-url">URL（任意）</label>
+        <input type="url" id="input-url" placeholder="https://" />
+      </div>
+
+      <div class="field">
+        <label for="input-start">公開開始日時</label>
+        <input type="datetime-local" id="input-start" />
+      </div>
+
+      <div class="field">
+        <label for="input-end">公開終了日時（任意）</label>
+        <input type="datetime-local" id="input-end" />
+      </div>
+
+      <div class="field">
+        <label for="input-scope">公開範囲</label>
+        <select id="input-scope">
+          <option value="draft">非公開</option>
+          <option value="free">Free</option>
+          <option value="plus">Plus</option>
+          <option value="max">Max</option>
+        </select>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+
+      <button class="btn-save" id="btn-save">保存する</button>
+
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="new.js"></script>
+</body>
+</html>
