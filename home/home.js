@@ -242,6 +242,7 @@ function closeYearOverlay() {
   document.getElementById('year-overlay').classList.remove('open')
 }
 
+let scrolling = false
 document.addEventListener('DOMContentLoaded', () => {
   const calSection = document.querySelector('.calendar-section')
   calSection.addEventListener('wheel', (e) => {
@@ -258,7 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCalendar()
   }, { passive: true })
 })
-let scrolling = false
 
 document.getElementById('burger-btn').addEventListener('click', () => {
   document.getElementById('drawer').classList.toggle('open')
