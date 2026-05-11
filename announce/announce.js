@@ -11,7 +11,6 @@ async function checkAuth() {
 
 let allAnnouncements = []
 
-// 公開ステータスを計算
 function getStatus(item) {
   const now = new Date()
   const start = new Date(item.publish_start)
@@ -49,7 +48,12 @@ function formatDatetime(str) {
   })
 }
 
-// 一覧取得
+function toLocalInput(isoStr) {
+  const d = new Date(isoStr)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function fetchAnnouncements() {
   const { data, error } = await db
     .from('announcements')
@@ -58,7 +62,6 @@ async function fetchAnnouncements() {
   if (!error) allAnnouncements = data
 }
 
-// 一覧描画
 function renderList(items) {
   const list = document.getElementById('announce-list')
   const empty = document.getElementById('empty-msg')
@@ -72,13 +75,9 @@ function renderList(items) {
 
   items.forEach(item => {
     const status = getStatus(item)
+    const endStr = item.publish_end ? ` 〜 ${formatDatetime(item.publish_end)}` : ''
     const li = document.createElement('li')
     li.className = 'announce-item'
-
-    const endStr = item.publish_end
-      ? ` 〜 ${formatDatetime(item.publish_end)}`
-      : ''
-
     li.innerHTML = `
       <div class="announce-title">${item.title}</div>
       <div class="announce-content">${item.content || ''}</div>
@@ -92,14 +91,12 @@ function renderList(items) {
         <button class="btn-delete" data-id="${item.id}">削除</button>
       </div>
     `
-
     li.querySelector('.btn-edit').addEventListener('click', () => openEdit(item))
     li.querySelector('.btn-delete').addEventListener('click', () => deleteItem(item.id))
     list.appendChild(li)
   })
 }
 
-// 検索
 document.getElementById('search-input').addEventListener('input', (e) => {
   const q = e.target.value.trim().toLowerCase()
   if (!q) { renderList(allAnnouncements); return }
@@ -110,7 +107,6 @@ document.getElementById('search-input').addEventListener('input', (e) => {
   renderList(filtered)
 })
 
-// 削除
 async function deleteItem(id) {
   if (!confirm('削除しますか？')) return
   await db.from('announcements').delete().eq('id', id)
@@ -118,14 +114,11 @@ async function deleteItem(id) {
   renderList(allAnnouncements)
 }
 
-// 編集ポップアップを開く
 function openEdit(item) {
   document.getElementById('edit-title').value = item.title
   document.getElementById('edit-content').value = item.content || ''
   document.getElementById('edit-url').value = item.url || ''
   document.getElementById('edit-scope').value = item.scope || 'draft'
-
-  // datetime-local用にフォーマット変換
   document.getElementById('edit-start').value = toLocalInput(item.publish_start)
   document.getElementById('edit-end').value = item.publish_end ? toLocalInput(item.publish_end) : ''
 
@@ -134,13 +127,14 @@ function openEdit(item) {
     const start = document.getElementById('edit-start').value
     if (!title || !start) return
 
+    const endVal = document.getElementById('edit-end').value
     await db.from('announcements').update({
       title,
       content: document.getElementById('edit-content').value,
       url: document.getElementById('edit-url').value,
       publish_start: new Date(start).toISOString(),
-      publish_end: document.getElementById('edit-end').value
-        ? new Date(document.getElementById('edit-end').value + ':59').toISOString()
+      publish_end: endVal
+        ? (() => { const d = new Date(endVal); d.setSeconds(59); return d.toISOString() })()
         : null,
       scope: document.getElementById('edit-scope').value
     }).eq('id', item.id)
@@ -153,22 +147,13 @@ function openEdit(item) {
   openPopup('popup-edit-overlay')
 }
 
-// datetime-local inputに渡す形式に変換
-function toLocalInput(isoStr) {
-  const d = new Date(isoStr)
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
 function openPopup(id) { document.getElementById(id).classList.add('open') }
 function closePopup(id) { document.getElementById(id).classList.remove('open') }
 
-// ＋ボタン → 作成ページへ
 document.getElementById('btn-add').addEventListener('click', () => {
   window.location.href = 'new/new.html'
 })
 
-// ドロワー
 document.getElementById('burger-btn').addEventListener('click', () => {
   document.getElementById('drawer').classList.toggle('open')
   document.getElementById('drawer-overlay').classList.toggle('open')
@@ -178,13 +163,15 @@ document.getElementById('drawer-overlay').addEventListener('click', () => {
   document.getElementById('drawer-overlay').classList.remove('open')
 })
 
-// ログアウト
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await db.auth.signOut()
   window.location.href = '../login/login.html'
 })
 
-// 起動
+document.getElementById('popup-edit-close').addEventListener('click', () => {
+  closePopup('popup-edit-overlay')
+})
+
 ;(async () => {
   await checkAuth()
   await fetchAnnouncements()
