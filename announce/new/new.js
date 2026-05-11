@@ -5,7 +5,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 async function checkAuth() {
   const { data: { session } } = await db.auth.getSession()
-  if (!session) window.location.href = '../../../login/login.html'
+  if (!session) window.location.href = '../../login/login.html'
   return session
 }
 
@@ -39,7 +39,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
 
   const { data: { session } } = await db.auth.getSession()
   if (!session) {
-    window.location.href = '../../../login/login.html'
+    window.location.href = '../../login/login.html'
     return
   }
 
@@ -65,7 +65,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
   }
 
   // 保存成功 → 一覧へ戻る
-  window.location.href = '../index.html'
+  window.location.href = '../announce.html'
 })
 
 // ドロワー
@@ -81,7 +81,7 @@ document.getElementById('drawer-overlay').addEventListener('click', () => {
 // ログアウト
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await db.auth.signOut()
-  window.location.href = '../../../login/login.html'
+  window.location.href = '../../login/login.html'
 })
 
 // 起動
