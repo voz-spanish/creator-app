@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>アナウンス管理</title>
+  <title>アナウンス作成</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="announce.css">
+  <link rel="stylesheet" href="new.css">
 </head>
 <body>
 
@@ -22,65 +22,69 @@
   <div class="drawer-overlay" id="drawer-overlay"></div>
   <nav class="drawer" id="drawer">
     <ul class="drawer-nav">
-      <li><a href="../home/home.html">ホーム</a></li>
+      <li><a href="../../home/home.html">ホーム</a></li>
       <li class="drawer-divider"></li>
-      <li><a href="../lesson/lesson.html">レッスン</a></li>
-      <li><a href="../flashcard/flashcard.html">フラッシュカード</a></li>
-      <li><a href="../dictionary/dictionary.html">辞書</a></li>
-      <li><a href="../question/question.html">質問</a></li>
+      <li><a href="../../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../../question/question.html">質問</a></li>
+      <li><a href="../../announce/announce.html">アナウンス</a></li>
     </ul>
     <button class="logout-btn" id="logout-btn">ログアウト</button>
   </nav>
 
   <!-- メイン -->
   <main class="main">
+    <div class="form-wrap">
 
-    <!-- 検索バー -->
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" placeholder="キーワードで検索" />
-    </div>
+      <div class="page-header">
+        <a class="back-link" href="../announce.html">← 一覧に戻る</a>
+        <h1 class="page-title">新規アナウンス</h1>
+      </div>
 
-    <!-- 一覧 -->
-    <ul class="announce-list" id="announce-list"></ul>
-    <p class="empty-msg" id="empty-msg">アナウンスはありません</p>
+      <div class="field">
+        <label for="input-title">タイトル</label>
+        <input type="text" id="input-title" placeholder="タイトルを入力" />
+      </div>
 
-  </main>
+      <div class="field">
+        <label for="input-content">内容</label>
+        <textarea id="input-content" placeholder="内容を入力"></textarea>
+      </div>
 
-  <!-- フッター -->
-  <footer class="footer">
-    <button class="btn-add" id="btn-add">＋</button>
-  </footer>
+      <div class="field">
+        <label for="input-url">URL（任意）</label>
+        <input type="url" id="input-url" placeholder="https://" />
+      </div>
 
-  <!-- 編集ポップアップ -->
-  <div class="popup-overlay" id="popup-edit-overlay">
-    <div class="popup" id="popup-edit">
-      <button class="popup-close" id="popup-edit-close">✕</button>
-      <h2 class="popup-title">アナウンスを編集</h2>
-      <div class="popup-form">
-        <label>タイトル</label>
-        <input type="text" id="edit-title" />
-        <label>内容</label>
-        <textarea id="edit-content"></textarea>
-        <label>URL</label>
-        <input type="url" id="edit-url" />
-        <label>公開開始日時</label>
-        <input type="datetime-local" id="edit-start" />
-        <label>公開終了日時（任意）</label>
-        <input type="datetime-local" id="edit-end" />
-        <label>公開範囲</label>
-        <select id="edit-scope">
+      <div class="field">
+        <label for="input-start">公開開始日時</label>
+        <input type="datetime-local" id="input-start" />
+      </div>
+
+      <div class="field">
+        <label for="input-end">公開終了日時（任意）</label>
+        <input type="datetime-local" id="input-end" />
+      </div>
+
+      <div class="field">
+        <label for="input-scope">公開範囲</label>
+        <select id="input-scope">
           <option value="draft">非公開</option>
           <option value="free">Free</option>
           <option value="plus">Plus</option>
           <option value="max">Max</option>
         </select>
       </div>
-      <button class="popup-save" id="edit-save">更新する</button>
+
+      <p class="error-msg" id="error-msg"></p>
+
+      <button class="btn-save" id="btn-save">保存する</button>
+
     </div>
-  </div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="announce.js"></script>
+  <script src="new.js"></script>
 </body>
 </html>
