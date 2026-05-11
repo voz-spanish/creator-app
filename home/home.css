@@ -22,7 +22,6 @@ body {
   overflow: hidden;
 }
 
-/* ヘッダー */
 .header {
   display: flex;
   align-items: center;
@@ -60,7 +59,6 @@ body {
   transition: 0.2s;
 }
 
-/* ドロワー */
 .drawer-overlay {
   position: fixed;
   inset: 0;
@@ -71,10 +69,7 @@ body {
   z-index: 10;
 }
 
-.drawer-overlay.open {
-  opacity: 1;
-  pointer-events: all;
-}
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
 
 .drawer {
   position: fixed;
@@ -92,9 +87,7 @@ body {
   padding: 60px 0 40px;
 }
 
-.drawer.open {
-  transform: translateX(0);
-}
+.drawer.open { transform: translateX(0); }
 
 .drawer-nav {
   list-style: none;
@@ -114,6 +107,12 @@ body {
 
 .drawer-nav li a:hover { color: var(--accent); }
 
+.drawer-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--earth) 30%, transparent);
+  margin: 8px 0;
+}
+
 .logout-btn {
   margin: 0 32px;
   background: none;
@@ -129,7 +128,6 @@ body {
 
 .logout-btn:hover { background: var(--accent); color: var(--surface); }
 
-/* メイン */
 .main {
   flex: 1;
   overflow-y: auto;
@@ -137,16 +135,13 @@ body {
   flex-direction: column;
 }
 
-/* カレンダー */
 .calendar-section {
   padding: 16px 16px 8px;
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
 }
 
-.calendar-header {
-  margin-bottom: 12px;
-}
+.calendar-header { margin-bottom: 12px; }
 
 .calendar-month {
   font-family: 'Cormorant Garamond', serif;
@@ -186,7 +181,6 @@ body {
   padding: 6px 0;
   cursor: pointer;
   position: relative;
-  border-radius: 0;
 }
 
 .cal-day-num {
@@ -210,9 +204,7 @@ body {
   border-radius: 50%;
 }
 
-.cal-day.today.selected .cal-day-num {
-  background: var(--accent);
-}
+.cal-day.today.selected .cal-day-num { background: var(--accent); }
 
 .cal-dot {
   width: 4px;
@@ -229,7 +221,6 @@ body {
 .cal-day.today.cal-day-sat .cal-day-num,
 .cal-day.today.cal-day-sun .cal-day-num { color: var(--surface); }
 
-/* タスクセクション */
 .task-section {
   flex: 1;
   padding: 16px;
@@ -261,7 +252,6 @@ body {
 }
 
 .task-item:hover { border-left-color: var(--accent); }
-
 .task-item.done { opacity: 0.45; }
 .task-item.done .task-title { text-decoration: line-through; }
 
@@ -278,10 +268,7 @@ body {
   cursor: pointer;
 }
 
-.task-title {
-  font-size: 0.9rem;
-  flex: 1;
-}
+.task-title { font-size: 0.9rem; flex: 1; }
 
 .task-empty {
   font-size: 0.8rem;
@@ -290,7 +277,6 @@ body {
   display: none;
 }
 
-/* フッター */
 .footer {
   display: flex;
   align-items: center;
@@ -322,12 +308,8 @@ body {
   padding: 6px 16px;
 }
 
-.footer-btn--add {
-  font-size: 1.4rem;
-  color: var(--accent);
-}
+.footer-btn--add { font-size: 1.4rem; color: var(--accent); }
 
-/* 年間オーバーレイ */
 .year-overlay {
   position: fixed;
   inset: 0;
@@ -363,8 +345,6 @@ body {
   margin-top: 16px;
 }
 
-.year-month-block { }
-
 .year-month-name {
   font-size: 0.75rem;
   letter-spacing: 0.15em;
@@ -390,7 +370,6 @@ body {
 .year-mini-day.has-task { text-decoration: underline; }
 .year-mini-dow { color: var(--muted); font-size: 0.5rem; text-align: center; }
 
-/* ポップアップ共通 */
 .popup-overlay {
   position: fixed;
   inset: 0;
@@ -403,10 +382,7 @@ body {
   transition: opacity 0.25s;
 }
 
-.popup-overlay.open {
-  opacity: 1;
-  pointer-events: all;
-}
+.popup-overlay.open { opacity: 1; pointer-events: all; }
 
 .popup {
   background: var(--surface);
@@ -418,9 +394,7 @@ body {
   transition: transform 0.25s;
 }
 
-.popup-overlay.open .popup {
-  transform: translateY(0);
-}
+.popup-overlay.open .popup { transform: translateY(0); }
 
 .popup-close {
   position: absolute;
@@ -474,15 +448,10 @@ body {
   width: 100%;
 }
 
-.popup-form textarea {
-  min-height: 80px;
-  resize: vertical;
-}
+.popup-form textarea { min-height: 80px; resize: vertical; }
 
 .popup-form input:focus,
-.popup-form textarea:focus {
-  border-color: var(--accent);
-}
+.popup-form textarea:focus { border-color: var(--accent); }
 
 .popup-save {
   width: 100%;
