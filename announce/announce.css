@@ -22,7 +22,6 @@ body {
   overflow: hidden;
 }
 
-/* ヘッダー */
 .header {
   display: flex;
   align-items: center;
@@ -59,7 +58,6 @@ body {
   background: var(--text);
 }
 
-/* ドロワー */
 .drawer-overlay {
   position: fixed;
   inset: 0;
@@ -129,14 +127,12 @@ body {
 
 .logout-btn:hover { background: var(--accent); color: var(--surface); }
 
-/* メイン */
 .main {
   flex: 1;
   overflow-y: auto;
   padding-bottom: 80px;
 }
 
-/* 検索 */
 .search-wrap {
   display: flex;
   align-items: center;
@@ -163,7 +159,6 @@ body {
 
 .search-wrap input::placeholder { color: var(--muted); }
 
-/* 一覧 */
 .announce-list {
   list-style: none;
   display: flex;
@@ -219,6 +214,7 @@ body {
 .status-badge.scheduled { color: var(--earth); }
 .status-badge.active    { color: var(--moss); }
 .status-badge.ended     { color: var(--muted); }
+.status-badge.draft     { color: var(--muted); }
 
 .scope-badge {
   font-size: 0.65rem;
@@ -258,7 +254,6 @@ body {
   display: none;
 }
 
-/* フッター */
 .footer {
   position: fixed;
   bottom: 0;
@@ -288,7 +283,6 @@ body {
 
 .btn-add:hover { opacity: 0.85; }
 
-/* ポップアップ */
 .popup-overlay {
   position: fixed;
   inset: 0;
