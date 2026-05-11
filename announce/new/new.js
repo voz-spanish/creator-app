@@ -9,7 +9,6 @@ async function checkAuth() {
   return session
 }
 
-// 今日の日時をdatetime-localの初期値に設定
 function setDefaultDatetime() {
   const now = new Date()
   const pad = n => String(n).padStart(2, '0')
@@ -17,7 +16,6 @@ function setDefaultDatetime() {
   document.getElementById('input-start').value = local
 }
 
-// 保存
 document.getElementById('btn-save').addEventListener('click', async () => {
   const title = document.getElementById('input-title').value.trim()
   const start = document.getElementById('input-start').value
@@ -64,11 +62,9 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     return
   }
 
-  // 保存成功 → 一覧へ戻る
   window.location.href = '../announce.html'
 })
 
-// ドロワー
 document.getElementById('burger-btn').addEventListener('click', () => {
   document.getElementById('drawer').classList.toggle('open')
   document.getElementById('drawer-overlay').classList.toggle('open')
@@ -78,13 +74,11 @@ document.getElementById('drawer-overlay').addEventListener('click', () => {
   document.getElementById('drawer-overlay').classList.remove('open')
 })
 
-// ログアウト
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await db.auth.signOut()
   window.location.href = '../../login/login.html'
 })
 
-// 起動
 ;(async () => {
   await checkAuth()
   setDefaultDatetime()
