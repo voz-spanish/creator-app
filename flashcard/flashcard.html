@@ -1,154 +1,39 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>フラッシュカード管理</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="flashcard.css">
-</head>
-<body>
+<!-- フラッシュカード編集ポップアップ -->
+<div class="popup-overlay" id="popup-edit-set-overlay">
+  <div class="popup">
+    <button class="popup-close" id="popup-edit-set-close">✕</button>
+    <h2 class="popup-title">フラッシュカードを編集</h2>
+    <div class="popup-form">
+      <label>カテゴリ</label>
+      <select id="edit-set-category"></select>
+      <label>フラッシュカード名</label>
+      <input type="text" id="edit-set-name" />
+      <label>タグ（このタグのカードを自動収集・複数可）</label>
+      <input type="text" id="edit-set-tags" placeholder="例: 乗り物 旅行" />
+      <div class="tag-suggestions" id="edit-set-tag-suggestions"></div>
+      <label>公開範囲</label>
+      <select id="edit-set-scope">
+        <option value="plus">Plus</option>
+        <option value="free">Free</option>
+        <option value="max">Max</option>
+        <option value="draft">非公開</option>
+      </select>
+    </div>
 
-  <header class="header">
-    <span class="header-logo">Flashcards</span>
-    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
-      <span></span><span></span><span></span>
-    </button>
-  </header>
-
-  <div class="drawer-overlay" id="drawer-overlay"></div>
-  <nav class="drawer" id="drawer">
-    <ul class="drawer-nav">
-      <li><a href="../home/home.html">ホーム</a></li>
-      <li class="drawer-divider"></li>
-      <li><a href="../lesson/lesson.html">レッスン</a></li>
-      <li><a href="../flashcard/flashcard.html">フラッシュカード</a></li>
-      <li><a href="../dictionary/dictionary.html">辞書</a></li>
-      <li><a href="../question/question.html">質問</a></li>
-      <li><a href="../announce/announce.html">アナウンス</a></li>
-    </ul>
-    <button class="logout-btn" id="logout-btn">ログアウト</button>
-  </nav>
-
-  <main class="main">
-
-    <!-- 検索・絞り込みバー -->
-    <div class="filter-bar" id="filter-bar">
-      <div class="filter-top" id="filter-top">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="キーワードで検索" />
-        <button class="filter-toggle-btn" id="filter-toggle-btn">▲</button>
-      </div>
-      <div class="filter-body" id="filter-body">
-        <div class="filter-row">
-          <label>カテゴリ</label>
-          <select id="filter-category">
-            <option value="">すべて</option>
-          </select>
+    <!-- カード一覧（折りたたみ） -->
+    <div class="collapse-section">
+      <button class="collapse-toggle" id="edit-collapse-toggle">
+        カードを選んで追加 ▼
+      </button>
+      <div class="collapse-body" id="edit-collapse-body" style="display:none">
+        <div class="card-search-wrap">
+          <span>🔍</span>
+          <input type="text" id="edit-set-card-search" placeholder="タグ・キーワードで検索" />
         </div>
-        <div class="filter-row">
-          <label>フラッシュカード</label>
-          <select id="filter-set">
-            <option value="">すべて</option>
-          </select>
-        </div>
+        <ul class="card-check-list" id="edit-card-check-list"></ul>
       </div>
     </div>
 
-    <!-- フラッシュカード選択時の詳細 -->
-    <div class="set-detail" id="set-detail" style="display:none">
-      <div class="set-detail-info">
-        <div class="set-detail-name" id="set-detail-name"></div>
-        <div class="set-detail-meta" id="set-detail-meta"></div>
-        <div class="set-detail-count" id="set-detail-count"></div>
-        <div class="set-detail-actions">
-          <button class="btn-text" id="btn-edit-set">編集</button>
-          <button class="btn-text" id="btn-add-card-to-set">カードの追加</button>
-          <button class="btn-text btn-danger" id="btn-delete-set">削除</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- カード一覧 -->
-    <ul class="card-list" id="card-list"></ul>
-    <p class="empty-msg" id="empty-msg">カードがありません</p>
-
-  </main>
-
-  <footer class="footer">
-    <button class="btn-footer" id="btn-new-set">フラッシュカード＋</button>
-    <button class="btn-footer btn-footer--accent" id="btn-new-card">カード＋</button>
-  </footer>
-
-  <!-- カード確認ポップアップ（フリップ） -->
-  <div class="popup-overlay" id="popup-flip-overlay">
-    <div class="popup popup-flip">
-      <button class="popup-close" id="popup-flip-close">✕</button>
-      <button class="flip-lang-btn" id="flip-lang-btn">ES ↔ JP</button>
-      <div class="flip-card" id="flip-card">
-        <div class="flip-card-inner" id="flip-card-inner">
-          <div class="flip-front" id="flip-front"></div>
-          <div class="flip-back" id="flip-back"></div>
-        </div>
-      </div>
-      <button class="flip-btn" id="flip-btn">めくる</button>
-    </div>
+    <button class="popup-save" id="edit-set-save" style="margin-top:16px">更新する</button>
   </div>
-
-  <!-- カード編集ポップアップ -->
-  <div class="popup-overlay" id="popup-edit-card-overlay">
-    <div class="popup">
-      <button class="popup-close" id="popup-edit-card-close">✕</button>
-      <h2 class="popup-title">カードを編集</h2>
-      <div class="popup-form">
-        <label>スペイン語</label>
-        <input type="text" id="edit-spanish" />
-        <label>日本語</label>
-        <input type="text" id="edit-japanese" />
-        <label>例文（任意）</label>
-        <textarea id="edit-example"></textarea>
-        <label>💡 ヒント（任意）</label>
-        <textarea id="edit-hint"></textarea>
-        <label>タグ（スペース区切りで複数入力）</label>
-        <input type="text" id="edit-tags" placeholder="例: 乗り物 旅行" />
-        <label>公開範囲</label>
-        <select id="edit-scope">
-          <option value="plus">Plus</option>
-          <option value="free">Free</option>
-          <option value="max">Max</option>
-          <option value="draft">非公開</option>
-        </select>
-      </div>
-      <button class="popup-save" id="edit-card-save">更新する</button>
-    </div>
-  </div>
-
-  <!-- フラッシュカード編集ポップアップ -->
-  <div class="popup-overlay" id="popup-edit-set-overlay">
-    <div class="popup">
-      <button class="popup-close" id="popup-edit-set-close">✕</button>
-      <h2 class="popup-title">フラッシュカードを編集</h2>
-      <div class="popup-form">
-        <label>カテゴリ</label>
-        <select id="edit-set-category"></select>
-        <label>フラッシュカード名</label>
-        <input type="text" id="edit-set-name" />
-        <label>タグ（このタグのカードを自動収集）</label>
-        <input type="text" id="edit-set-tags" placeholder="例: 乗り物 旅行" />
-        <label>公開範囲</label>
-        <select id="edit-set-scope">
-          <option value="plus">Plus</option>
-          <option value="free">Free</option>
-          <option value="max">Max</option>
-          <option value="draft">非公開</option>
-        </select>
-      </div>
-      <button class="popup-save" id="edit-set-save">更新する</button>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="flashcard.js"></script>
-</body>
-</html>
+</div>
