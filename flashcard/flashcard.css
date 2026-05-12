@@ -1,0 +1,586 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent: #C74629;
+  --bg: #F1EDE3;
+  --text: #261F1B;
+  --muted: #8C6355;
+  --surface: #FFFEF5;
+  --earth: #A08420;
+  --slate: #3F4820;
+  --moss: #5A7252;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 300;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  flex-shrink: 0;
+}
+
+.header-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+}
+
+.burger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+}
+
+.burger-btn span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--text);
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+  z-index: 10;
+}
+
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100dvh;
+  background: var(--surface);
+  border-left: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  transform: translateX(100%);
+  transition: transform 0.25s;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  padding: 60px 0 40px;
+}
+
+.drawer.open { transform: translateX(0); }
+
+.drawer-nav {
+  list-style: none;
+  flex: 1;
+}
+
+.drawer-nav li a {
+  display: block;
+  padding: 16px 32px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  transition: color 0.2s;
+}
+
+.drawer-nav li a:hover { color: var(--accent); }
+
+.drawer-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--earth) 30%, transparent);
+  margin: 8px 0;
+}
+
+.logout-btn {
+  margin: 0 32px;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.logout-btn:hover { background: var(--accent); color: var(--surface); }
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 72px;
+}
+
+/* フィルターバー */
+.filter-bar {
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.filter-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.search-icon { font-size: 0.9rem; flex-shrink: 0; }
+
+.filter-top input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.filter-top input::placeholder { color: var(--muted); }
+
+.filter-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+
+.filter-body {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+}
+
+.filter-body.open { display: flex; }
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+}
+
+.filter-row label {
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.filter-row select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 0;
+  padding: 8px 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  outline: none;
+}
+
+/* セット詳細 */
+.set-detail {
+  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  padding: 16px;
+}
+
+.set-detail-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+}
+
+.set-detail-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.set-detail-count {
+  font-size: 0.85rem;
+  color: var(--earth);
+  margin-bottom: 12px;
+}
+
+.set-detail-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--earth);
+  border-bottom: 1px solid var(--earth);
+  cursor: pointer;
+  padding: 2px 0;
+  transition: 0.2s;
+}
+
+.btn-text:hover { color: var(--accent); border-color: var(--accent); }
+.btn-text.btn-danger { color: var(--muted); border-color: var(--muted); }
+.btn-text.btn-danger:hover { color: var(--accent); border-color: var(--accent); }
+
+/* カード一覧 */
+.card-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-item {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.25s;
+}
+
+.card-item-body {
+  flex: 1;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-spanish {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.card-japanese {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.card-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.scope-badge {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.tag-badge {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--earth) 15%, transparent);
+  color: var(--earth);
+}
+
+.card-item-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-left: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+}
+
+.btn-card-action {
+  background: none;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-card-action:hover { color: var(--accent); }
+
+/* スライドで削除 */
+.card-delete-reveal {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--surface);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transform: translateX(100%);
+  transition: transform 0.25s;
+}
+
+.card-item.swiped .card-delete-reveal { transform: translateX(0); }
+.card-item.swiped { transform: translateX(-80px); }
+
+.empty-msg {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 48px 16px;
+  display: none;
+}
+
+/* フッター */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--surface);
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.btn-footer {
+  background: none;
+  border: 1px solid var(--earth);
+  color: var(--earth);
+  padding: 10px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-footer:hover { background: var(--earth); color: var(--surface); }
+
+.btn-footer--accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.btn-footer--accent:hover { opacity: 0.85; background: var(--accent); color: var(--surface); }
+
+/* ポップアップ共通 */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.5);
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.popup-overlay.open { opacity: 1; pointer-events: all; }
+
+.popup {
+  background: var(--surface);
+  width: 100%;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 32px 24px 48px;
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  position: relative;
+  transform: translateY(40px);
+  transition: transform 0.25s;
+}
+
+.popup-overlay.open .popup { transform: translateY(0); }
+
+.popup-close {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.popup-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.3rem;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.popup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.popup-form label {
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.popup-form input,
+.popup-form textarea,
+.popup-form select {
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 0;
+  padding: 12px 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.popup-form textarea { min-height: 80px; resize: vertical; }
+.popup-form input:focus,
+.popup-form textarea:focus,
+.popup-form select:focus { border-color: var(--accent); }
+
+.popup-save {
+  width: 100%;
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  padding: 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.popup-save:hover { opacity: 0.85; }
+
+/* フリップカード */
+.popup-flip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 48px 24px;
+}
+
+.flip-lang-btn {
+  background: none;
+  border: 1px solid var(--earth);
+  color: var(--earth);
+  padding: 6px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.flip-lang-btn:hover { background: var(--earth); color: var(--surface); }
+
+.flip-card {
+  width: 100%;
+  max-width: 320px;
+  height: 200px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.flip-card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+}
+
+.flip-card-inner.flipped { transform: rotateY(180deg); }
+
+.flip-front, .flip-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  background: var(--surface);
+  font-size: 1.2rem;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
+}
+
+.flip-btn {
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  padding: 12px 32px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.flip-btn:hover { opacity: 0.85; }
