@@ -1,0 +1,416 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --accent: #C74629;
+  --bg: #F1EDE3;
+  --text: #261F1B;
+  --muted: #8C6355;
+  --surface: #FFFEF5;
+  --earth: #A08420;
+  --slate: #3F4820;
+  --moss: #5A7252;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 300;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.header-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+}
+
+.burger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
+}
+
+.burger-btn span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--text);
+}
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+  z-index: 10;
+}
+
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100dvh;
+  background: var(--surface);
+  border-left: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  transform: translateX(100%);
+  transition: transform 0.25s;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  padding: 60px 0 40px;
+}
+
+.drawer.open { transform: translateX(0); }
+
+.drawer-nav {
+  list-style: none;
+  flex: 1;
+}
+
+.drawer-nav li a {
+  display: block;
+  padding: 16px 32px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  transition: color 0.2s;
+}
+
+.drawer-nav li a:hover { color: var(--accent); }
+
+.drawer-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--earth) 30%, transparent);
+  margin: 8px 0;
+}
+
+.logout-btn {
+  margin: 0 32px;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.logout-btn:hover { background: var(--accent); color: var(--surface); }
+
+.main {
+  flex: 1;
+  padding: 24px 16px 100px;
+}
+
+.form-wrap {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.back-link {
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.back-link:hover { color: var(--accent); }
+
+.page-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1.6rem, 5vw, 2.2rem);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+label {
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  color: var(--muted);
+}
+
+input[type="text"],
+input[type="url"],
+textarea,
+select {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 0;
+  padding: 12px 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+textarea { min-height: 80px; resize: vertical; line-height: 1.8; }
+
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+input::placeholder, textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+
+/* タグ候補 */
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 0;
+}
+
+.tag-suggestion-item {
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--earth) 15%, transparent);
+  color: var(--earth);
+  cursor: pointer;
+  transition: 0.15s;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+}
+
+.tag-suggestion-item:hover {
+  background: var(--earth);
+  color: var(--surface);
+}
+
+/* フラッシュカード選択チェックボックス */
+.set-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.set-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  cursor: pointer;
+}
+
+.set-checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--muted);
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.set-checkbox-item label {
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  cursor: pointer;
+  margin: 0;
+}
+
+/* カテゴリ追加 */
+.btn-add-category {
+  background: none;
+  border: none;
+  color: var(--earth);
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--earth);
+  width: fit-content;
+  transition: 0.2s;
+}
+
+.btn-add-category:hover { color: var(--accent); border-color: var(--accent); }
+
+.new-category-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.new-category-wrap input {
+  flex: 1;
+}
+
+.btn-save-category {
+  background: var(--earth);
+  color: var(--surface);
+  border: none;
+  padding: 12px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.btn-save-category:hover { opacity: 0.85; }
+
+/* 折りたたみ */
+.collapse-section {
+  border: 1px solid color-mix(in srgb, var(--earth) 25%, transparent);
+}
+
+.collapse-toggle {
+  width: 100%;
+  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
+  border: none;
+  padding: 14px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.collapse-toggle:hover {
+  background: color-mix(in srgb, var(--earth) 15%, var(--surface));
+}
+
+.collapse-body {
+  border-top: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+}
+
+.card-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+  background: var(--surface);
+}
+
+.card-search-wrap input {
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+
+.card-check-list {
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.card-check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 12%, transparent);
+  cursor: pointer;
+}
+
+.card-check-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.card-check-item-text { flex: 1; }
+
+.card-check-spanish {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.card-check-japanese {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* エラー */
+.error-msg {
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  min-height: 1em;
+}
+
+/* 固定フッター */
+.footer-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+}
+
+.btn-save {
+  width: 100%;
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  padding: 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-save:hover { opacity: 0.85; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
