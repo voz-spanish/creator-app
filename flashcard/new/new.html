@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>フラッシュカード新規作成</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="new.css">
+</head>
+<body>
+
+  <header class="header">
+    <span class="header-logo">Flashcards</span>
+    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <nav class="drawer" id="drawer">
+    <ul class="drawer-nav">
+      <li><a href="../../home/home.html">ホーム</a></li>
+      <li class="drawer-divider"></li>
+      <li><a href="../../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../../question/question.html">質問</a></li>
+      <li><a href="../../announce/announce.html">アナウンス</a></li>
+    </ul>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </nav>
+
+  <main class="main">
+    <div class="form-wrap">
+
+      <div class="page-header">
+        <a class="back-link" href="../flashcard.html">← 一覧に戻る</a>
+        <h1 class="page-title" id="page-title">新規作成</h1>
+      </div>
+
+      <!-- カード作成フォーム -->
+      <div id="form-card">
+        <div class="field">
+          <label>スペイン語</label>
+          <input type="text" id="card-spanish" placeholder="español" />
+        </div>
+        <div class="field">
+          <label>日本語</label>
+          <input type="text" id="card-japanese" placeholder="日本語の意味" />
+        </div>
+        <div class="field">
+          <label>例文（任意）</label>
+          <textarea id="card-example" placeholder="例文を入力"></textarea>
+        </div>
+        <div class="field">
+          <label>💡 ヒント（任意）</label>
+          <textarea id="card-hint" placeholder="覚え方のヒントなど"></textarea>
+        </div>
+        <div class="field">
+          <label>タグ（スペース区切りで複数入力）</label>
+          <input type="text" id="card-tags" placeholder="例: 乗り物 旅行" />
+          <div class="tag-suggestions" id="tag-suggestions"></div>
+        </div>
+        <div class="field">
+          <label>フラッシュカード（複数選択可・任意）</label>
+          <div class="set-checkboxes" id="set-checkboxes"></div>
+        </div>
+        <div class="field">
+          <label>公開範囲</label>
+          <select id="card-scope">
+            <option value="plus">Plus</option>
+            <option value="free">Free</option>
+            <option value="max">Max</option>
+            <option value="draft">非公開</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- フラッシュカード作成フォーム -->
+      <div id="form-set" style="display:none">
+        <div class="field">
+          <label>カテゴリ</label>
+          <select id="set-category">
+            <option value="">カテゴリを選択</option>
+          </select>
+          <button class="btn-add-category" id="btn-add-category">＋ カテゴリを追加</button>
+          <div class="new-category-wrap" id="new-category-wrap" style="display:none">
+            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名" />
+            <button class="btn-save-category" id="btn-save-category">追加</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>フラッシュカード名</label>
+          <input type="text" id="set-name" placeholder="フラッシュカード名を入力" />
+        </div>
+        <div class="field">
+          <label>タグ（このタグのカードを自動収集・複数可）</label>
+          <input type="text" id="set-tags" placeholder="例: 乗り物 旅行" />
+          <div class="tag-suggestions" id="set-tag-suggestions"></div>
+        </div>
+        <div class="field">
+          <label>公開範囲</label>
+          <select id="set-scope">
+            <option value="plus">Plus</option>
+            <option value="free">Free</option>
+            <option value="max">Max</option>
+            <option value="draft">非公開</option>
+          </select>
+        </div>
+
+        <!-- 折りたたみ：カード一覧 -->
+        <div class="collapse-section">
+          <button class="collapse-toggle" id="collapse-toggle">
+            カードを選んで追加 ▼
+          </button>
+          <div class="collapse-body" id="collapse-body" style="display:none">
+            <div class="card-search-wrap">
+              <span>🔍</span>
+              <input type="text" id="set-card-search" placeholder="タグ・キーワードで検索" />
+            </div>
+            <ul class="card-check-list" id="card-check-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+
+    </div>
+  </main>
+
+  <footer class="footer-fixed">
+    <button class="btn-save" id="btn-save">保存する</button>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="new.js"></script>
+</body>
+</html>
