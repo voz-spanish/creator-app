@@ -133,6 +133,7 @@ body {
   padding-bottom: 72px;
 }
 
+/* フィルターバー */
 .filter-bar {
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
@@ -210,6 +211,7 @@ body {
   outline: none;
 }
 
+/* セット詳細 */
 .set-detail {
   background: color-mix(in srgb, var(--earth) 8%, var(--surface));
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
@@ -258,6 +260,7 @@ body {
 .btn-text.btn-danger { color: var(--muted); border-color: var(--muted); }
 .btn-text.btn-danger:hover { color: var(--accent); border-color: var(--accent); }
 
+/* カード一覧 */
 .card-list {
   list-style: none;
   display: flex;
@@ -341,6 +344,7 @@ body {
 
 .btn-card-action:hover { color: var(--accent); }
 
+/* スライドで削除 */
 .card-delete-reveal {
   position: absolute;
   right: 0;
@@ -370,6 +374,7 @@ body {
   display: none;
 }
 
+/* フッター */
 .footer {
   position: fixed;
   bottom: 0;
@@ -407,6 +412,7 @@ body {
 
 .btn-footer--accent:hover { opacity: 0.85; background: var(--accent); color: var(--surface); }
 
+/* ポップアップ共通 */
 .popup-overlay {
   position: fixed;
   inset: 0;
@@ -485,7 +491,6 @@ body {
 }
 
 .popup-form textarea { min-height: 80px; resize: vertical; }
-
 .popup-form input:focus,
 .popup-form textarea:focus,
 .popup-form select:focus { border-color: var(--accent); }
@@ -505,6 +510,7 @@ body {
 
 .popup-save:hover { opacity: 0.85; }
 
+/* フリップカード */
 .popup-flip {
   display: flex;
   flex-direction: column;
@@ -578,109 +584,3 @@ body {
 }
 
 .flip-btn:hover { opacity: 0.85; }
-
-/* ポップアップ内折りたたみ */
-.popup .collapse-section {
-  border: 1px solid color-mix(in srgb, var(--earth) 25%, transparent);
-  margin-top: 16px;
-}
-
-.popup .collapse-toggle {
-  width: 100%;
-  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
-  border: none;
-  padding: 14px 16px;
-  font-family: 'Noto Serif JP', serif;
-  font-size: 0.8rem;
-  letter-spacing: 0.15em;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.2s;
-}
-
-.popup .collapse-toggle:hover {
-  background: color-mix(in srgb, var(--earth) 15%, var(--surface));
-}
-
-.popup .collapse-body {
-  border-top: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
-}
-
-.popup .card-search-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
-  background: var(--surface);
-}
-
-.popup .card-search-wrap input {
-  border: none;
-  background: none;
-  padding: 4px 0;
-  font-size: 0.85rem;
-  width: 100%;
-  outline: none;
-}
-
-.popup .card-check-list {
-  list-style: none;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.card-check-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-bottom: 1px solid color-mix(in srgb, var(--earth) 12%, transparent);
-  cursor: pointer;
-}
-
-.card-check-item input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  accent-color: var(--accent);
-  flex-shrink: 0;
-}
-
-.card-check-item-text { flex: 1; }
-
-.card-check-spanish {
-  font-size: 0.88rem;
-  color: var(--text);
-}
-
-.card-check-japanese {
-  font-size: 0.75rem;
-  color: var(--muted);
-}
-
-/* タグサジェスト */
-.tag-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-  min-height: 0;
-}
-
-.tag-suggestion-item {
-  font-size: 0.7rem;
-  padding: 4px 10px;
-  background: color-mix(in srgb, var(--earth) 15%, transparent);
-  color: var(--earth);
-  cursor: pointer;
-  transition: 0.15s;
-  border: none;
-  font-family: 'Noto Serif JP', serif;
-}
-
-.tag-suggestion-item:hover {
-  background: var(--earth);
-  color: var(--surface);
-}
