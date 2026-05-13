@@ -124,29 +124,45 @@
     </div>
   </div>
 
-  <!-- フラッシュカード編集ポップアップ -->
-  <div class="popup-overlay" id="popup-edit-set-overlay">
-    <div class="popup">
-      <button class="popup-close" id="popup-edit-set-close">✕</button>
-      <h2 class="popup-title">フラッシュカードを編集</h2>
-      <div class="popup-form">
-        <label>カテゴリ</label>
-        <select id="edit-set-category"></select>
-        <label>フラッシュカード名</label>
-        <input type="text" id="edit-set-name" />
-        <label>タグ（このタグのカードを自動収集）</label>
-        <input type="text" id="edit-set-tags" placeholder="例: 乗り物 旅行" />
-        <label>公開範囲</label>
-        <select id="edit-set-scope">
-          <option value="plus">Plus</option>
-          <option value="free">Free</option>
-          <option value="max">Max</option>
-          <option value="draft">非公開</option>
-        </select>
-      </div>
-      <button class="popup-save" id="edit-set-save">更新する</button>
+<!-- フラッシュカード編集ポップアップ -->
+<div class="popup-overlay" id="popup-edit-set-overlay">
+  <div class="popup">
+    <button class="popup-close" id="popup-edit-set-close">✕</button>
+    <h2 class="popup-title">フラッシュカードを編集</h2>
+    <div class="popup-form">
+      <label>カテゴリ</label>
+      <select id="edit-set-category"></select>
+      <label>フラッシュカード名</label>
+      <input type="text" id="edit-set-name" />
+      <label>タグ（このタグのカードを自動収集・複数可）</label>
+      <input type="text" id="edit-set-tags" placeholder="例: 乗り物 旅行" />
+      <div class="tag-suggestions" id="edit-set-tag-suggestions"></div>
+      <label>公開範囲</label>
+      <select id="edit-set-scope">
+        <option value="plus">Plus</option>
+        <option value="free">Free</option>
+        <option value="max">Max</option>
+        <option value="draft">非公開</option>
+      </select>
     </div>
+
+    <!-- カード一覧（折りたたみ） -->
+    <div class="collapse-section">
+      <button class="collapse-toggle" id="edit-collapse-toggle">
+        カードを選んで追加 ▼
+      </button>
+      <div class="collapse-body" id="edit-collapse-body" style="display:none">
+        <div class="card-search-wrap">
+          <span>🔍</span>
+          <input type="text" id="edit-set-card-search" placeholder="タグ・キーワードで検索" />
+        </div>
+        <ul class="card-check-list" id="edit-card-check-list"></ul>
+      </div>
+    </div>
+
+    <button class="popup-save" id="edit-set-save" style="margin-top:16px">更新する</button>
   </div>
+</div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="flashcard.js"></script>
