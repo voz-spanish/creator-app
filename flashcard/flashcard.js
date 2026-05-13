@@ -16,7 +16,6 @@ let selectedSetId = null
 let filterOpen = false
 let showES = true
 
-// データ取得
 async function fetchAll() {
   const [cardsRes, setsRes, catsRes] = await Promise.all([
     db.from('cards').select('*').order('created_at', { ascending: false }),
@@ -28,7 +27,6 @@ async function fetchAll() {
   if (!catsRes.error) allCategories = catsRes.data
 }
 
-// セットに紐づくカードIDを取得
 async function fetchSetCardIds(setId) {
   const { data } = await db
     .from('flashcard_set_cards')
@@ -37,25 +35,15 @@ async function fetchSetCardIds(setId) {
   return data || []
 }
 
-// タグ自動紐付けを同期
 async function syncTagCards(setId) {
   const set = allSets.find(s => s.id === setId)
   if (!set || !set.tags || set.tags.length === 0) return
-
-  const session = await db.auth.getSession()
-  const userId = session.data.session?.user.id
-
-  // このセットのタグにマッチするカードを取得
   const matchingCards = allCards.filter(c =>
     c.tags && c.tags.some(t => set.tags.includes(t))
   )
-
-  // 既存の紐付けを取得
   const existing = await fetchSetCardIds(setId)
   const existingIds = new Set(existing.map(e => e.card_id))
   const excludedIds = new Set(existing.filter(e => e.excluded).map(e => e.card_id))
-
-  // タグマッチするカードで未登録かつ除外されていないものを追加
   for (const card of matchingCards) {
     if (!existingIds.has(card.id) && !excludedIds.has(card.id)) {
       await db.from('flashcard_set_cards').insert({
@@ -68,21 +56,17 @@ async function syncTagCards(setId) {
   }
 }
 
-// カテゴリのselectを更新
 function populateCategorySelects() {
   const filterCat = document.getElementById('filter-category')
   const editSetCat = document.getElementById('edit-set-category')
-
   filterCat.innerHTML = '<option value="">すべて</option>'
   editSetCat.innerHTML = ''
-
   allCategories.forEach(cat => {
     filterCat.innerHTML += `<option value="${cat.id}">${cat.name}</option>`
     editSetCat.innerHTML += `<option value="${cat.id}">${cat.name}</option>`
   })
 }
 
-// フラッシュカードのselectを更新
 function populateSetSelect(categoryId = '') {
   const filterSet = document.getElementById('filter-set')
   filterSet.innerHTML = '<option value="">すべて</option>'
@@ -95,25 +79,19 @@ function populateSetSelect(categoryId = '') {
   if (selectedSetId) filterSet.value = selectedSetId
 }
 
-// カード一覧描画
 async function renderCards() {
   const list = document.getElementById('card-list')
   const empty = document.getElementById('empty-msg')
   const q = document.getElementById('search-input').value.trim().toLowerCase()
   const catId = document.getElementById('filter-category').value
   const setId = document.getElementById('filter-set').value
-
   list.innerHTML = ''
-
   let cards = [...allCards]
 
-  // フラッシュカード絞り込み
   if (setId) {
     selectedSetId = setId
     const setCards = await fetchSetCardIds(setId)
-    const validIds = new Set(
-      setCards.filter(sc => !sc.excluded).map(sc => sc.card_id)
-    )
+    const validIds = new Set(setCards.filter(sc => !sc.excluded).map(sc => sc.card_id))
     cards = cards.filter(c => validIds.has(c.id))
     showSetDetail(setId, cards.length)
   } else {
@@ -121,7 +99,6 @@ async function renderCards() {
     document.getElementById('set-detail').style.display = 'none'
   }
 
-  // キーワード絞り込み
   if (q) {
     cards = cards.filter(c =>
       c.spanish?.toLowerCase().includes(q) ||
@@ -140,10 +117,7 @@ async function renderCards() {
     const li = document.createElement('li')
     li.className = 'card-item'
     li.dataset.id = card.id
-
-    const tagsHtml = (card.tags || [])
-      .map(t => `<span class="tag-badge">${t}</span>`).join('')
-
+    const tagsHtml = (card.tags || []).map(t => `<span class="tag-badge">${t}</span>`).join('')
     li.innerHTML = `
       <div class="card-item-body">
         <div class="card-spanish">${card.spanish}</div>
@@ -160,8 +134,6 @@ async function renderCards() {
       </div>
       <div class="card-delete-reveal">削除</div>
     `
-
-    // タッチスワイプで削除
     let startX = 0
     li.addEventListener('touchstart', e => { startX = e.touches[0].clientX }, { passive: true })
     li.addEventListener('touchend', e => {
@@ -169,17 +141,14 @@ async function renderCards() {
       if (diff > 60) li.classList.add('swiped')
       else if (diff < -20) li.classList.remove('swiped')
     })
-
     li.querySelector('.card-delete-reveal').addEventListener('click', () => deleteCard(card.id))
     li.querySelector('.btn-confirm').addEventListener('click', () => openFlip(card))
     li.querySelector('.btn-edit').addEventListener('click', () => openEditCard(card))
     li.querySelector('.btn-delete').addEventListener('click', () => deleteCard(card.id))
-
     list.appendChild(li)
   })
 }
 
-// セット詳細表示
 function showSetDetail(setId, count) {
   const set = allSets.find(s => s.id === setId)
   if (!set) return
@@ -188,7 +157,6 @@ function showSetDetail(setId, count) {
   document.getElementById('set-detail-meta').textContent = cat ? cat.name : ''
   document.getElementById('set-detail-count').textContent = `${count}枚`
   document.getElementById('set-detail').style.display = 'block'
-
   document.getElementById('btn-edit-set').onclick = () => openEditSet(set)
   document.getElementById('btn-delete-set').onclick = () => deleteSet(set.id)
   document.getElementById('btn-add-card-to-set').onclick = () => {
@@ -205,7 +173,6 @@ function getScopeLabel(scope) {
   }
 }
 
-// カード削除
 async function deleteCard(id) {
   if (!confirm('このカードを削除しますか？')) return
   await db.from('flashcard_set_cards').delete().eq('card_id', id)
@@ -214,7 +181,6 @@ async function deleteCard(id) {
   renderCards()
 }
 
-// セット削除
 async function deleteSet(id) {
   if (!confirm('このフラッシュカードを削除しますか？')) return
   await db.from('flashcard_set_cards').delete().eq('set_id', id)
@@ -226,12 +192,10 @@ async function deleteSet(id) {
   renderCards()
 }
 
-// フリップポップアップ
 function openFlip(card) {
   showES = true
   updateFlipContent(card)
   document.getElementById('flip-card-inner').classList.remove('flipped')
-
   document.getElementById('flip-btn').onclick = () => {
     document.getElementById('flip-card-inner').classList.toggle('flipped')
   }
@@ -243,7 +207,6 @@ function openFlip(card) {
     document.getElementById('flip-card-inner').classList.remove('flipped')
     updateFlipContent(card)
   }
-
   openPopup('popup-flip-overlay')
 }
 
@@ -257,7 +220,6 @@ function updateFlipContent(card) {
   }
 }
 
-// カード編集ポップアップ
 function openEditCard(card) {
   document.getElementById('edit-spanish').value = card.spanish
   document.getElementById('edit-japanese').value = card.japanese
@@ -267,9 +229,7 @@ function openEditCard(card) {
   document.getElementById('edit-scope').value = card.scope || 'plus'
 
   document.getElementById('edit-card-save').onclick = async () => {
-    const tags = document.getElementById('edit-tags').value
-      .split(/\s+/).filter(t => t)
-
+    const tags = document.getElementById('edit-tags').value.split(/\s+/).filter(t => t)
     await db.from('cards').update({
       spanish: document.getElementById('edit-spanish').value.trim(),
       japanese: document.getElementById('edit-japanese').value.trim(),
@@ -278,19 +238,14 @@ function openEditCard(card) {
       tags,
       scope: document.getElementById('edit-scope').value
     }).eq('id', card.id)
-
-    // タグ変更後に全セットの自動紐付けを再同期
     for (const set of allSets) await syncTagCards(set.id)
-
     closePopup('popup-edit-card-overlay')
     await fetchAll()
     renderCards()
   }
-
   openPopup('popup-edit-card-overlay')
 }
 
-// カードチェックリスト描画（編集ポップアップ用）
 async function renderEditCardCheckList(q, setId, currentSetTags) {
   const list = document.getElementById('edit-card-check-list')
   const setCards = await fetchSetCardIds(setId)
@@ -323,7 +278,6 @@ async function renderEditCardCheckList(q, setId, currentSetTags) {
   })
 }
 
-// セット編集ポップアップ
 function openEditSet(set) {
   populateCategorySelects()
   document.getElementById('edit-set-category').value = set.category_id || ''
@@ -331,21 +285,11 @@ function openEditSet(set) {
   document.getElementById('edit-set-tags').value = (set.tags || []).join(' ')
   document.getElementById('edit-set-scope').value = set.scope || 'plus'
 
-  // タグサジェスト
   const allTagSet = new Set()
   allCards.forEach(c => (c.tags || []).forEach(t => allTagSet.add(t)))
   const allTagList = [...allTagSet].sort()
 
   const tagsInput = document.getElementById('edit-set-tags')
-  tagsInput.addEventListener('input', () => {
-    const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
-    showEditTagSuggestions(allTagList, currentTags)
-    renderEditCardCheckList(
-      document.getElementById('edit-set-card-search').value.toLowerCase(),
-      set.id,
-      currentTags
-    )
-  })
 
   function showEditTagSuggestions(tags, current) {
     const container = document.getElementById('edit-set-tag-suggestions')
@@ -364,8 +308,7 @@ function openEditSet(set) {
           showEditTagSuggestions(tags, newTags)
           renderEditCardCheckList(
             document.getElementById('edit-set-card-search').value.toLowerCase(),
-            set.id,
-            newTags
+            set.id, newTags
           )
         }
       })
@@ -373,7 +316,15 @@ function openEditSet(set) {
     })
   }
 
-  // 折りたたみ
+  tagsInput.oninput = () => {
+    const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
+    showEditTagSuggestions(allTagList, currentTags)
+    renderEditCardCheckList(
+      document.getElementById('edit-set-card-search').value.toLowerCase(),
+      set.id, currentTags
+    )
+  }
+
   const collapseBtn = document.getElementById('edit-collapse-toggle')
   const collapseBody = document.getElementById('edit-collapse-body')
   collapseBtn.onclick = () => {
@@ -382,18 +333,15 @@ function openEditSet(set) {
     collapseBtn.textContent = `カードを選んで追加 ${isOpen ? '▼' : '▲'}`
   }
 
-  // カード検索
-  document.getElementById('edit-set-card-search').addEventListener('input', (e) => {
+  document.getElementById('edit-set-card-search').oninput = (e) => {
     const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
     renderEditCardCheckList(e.target.value.toLowerCase(), set.id, currentTags)
-  })
+  }
 
-  // 初期描画
-  const initialTags = (set.tags || [])
+  const initialTags = set.tags || []
   renderEditCardCheckList('', set.id, initialTags)
   showEditTagSuggestions(allTagList, initialTags)
 
-  // 保存
   document.getElementById('edit-set-save').onclick = async () => {
     const tags = tagsInput.value.split(/\s+/).filter(t => t)
     const name = document.getElementById('edit-set-name').value.trim()
@@ -406,10 +354,8 @@ function openEditSet(set) {
       scope: document.getElementById('edit-set-scope').value
     }).eq('id', set.id)
 
-    // タグ自動紐付け同期
     await syncTagCards(set.id)
 
-    // 手動チェック状態を反映
     const allCheckboxes = document.querySelectorAll('#edit-card-check-list input[type="checkbox"]')
     for (const cb of allCheckboxes) {
       const cardId = cb.value
@@ -421,7 +367,6 @@ function openEditSet(set) {
           excluded: false
         }, { onConflict: 'set_id,card_id' })
       } else {
-        // チェックを外したものは除外フラグを立てる
         const existing = await db.from('flashcard_set_cards')
           .select('id').eq('set_id', set.id).eq('card_id', cardId).single()
         if (existing.data) {
@@ -443,14 +388,12 @@ function openEditSet(set) {
 function openPopup(id) { document.getElementById(id).classList.add('open') }
 function closePopup(id) { document.getElementById(id).classList.remove('open') }
 
-// フィルター開閉
 document.getElementById('filter-toggle-btn').addEventListener('click', () => {
   filterOpen = !filterOpen
   document.getElementById('filter-body').classList.toggle('open', filterOpen)
   document.getElementById('filter-toggle-btn').textContent = filterOpen ? '▼' : '▲'
 })
 
-// 検索・絞り込み
 document.getElementById('search-input').addEventListener('input', renderCards)
 document.getElementById('filter-category').addEventListener('change', (e) => {
   populateSetSelect(e.target.value)
@@ -458,7 +401,6 @@ document.getElementById('filter-category').addEventListener('change', (e) => {
 })
 document.getElementById('filter-set').addEventListener('change', renderCards)
 
-// フッターボタン
 document.getElementById('btn-new-card').addEventListener('click', () => {
   window.location.href = 'new/new.html?mode=card'
 })
@@ -466,12 +408,10 @@ document.getElementById('btn-new-set').addEventListener('click', () => {
   window.location.href = 'new/new.html?mode=set'
 })
 
-// ポップアップを閉じる
 document.getElementById('popup-flip-close').addEventListener('click', () => closePopup('popup-flip-overlay'))
 document.getElementById('popup-edit-card-close').addEventListener('click', () => closePopup('popup-edit-card-overlay'))
 document.getElementById('popup-edit-set-close').addEventListener('click', () => closePopup('popup-edit-set-overlay'))
 
-// ドロワー
 document.getElementById('burger-btn').addEventListener('click', () => {
   document.getElementById('drawer').classList.toggle('open')
   document.getElementById('drawer-overlay').classList.toggle('open')
@@ -485,7 +425,6 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   window.location.href = '../login/login.html'
 })
 
-// 起動
 ;(async () => {
   await checkAuth()
   await fetchAll()
