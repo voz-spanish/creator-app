@@ -290,6 +290,39 @@ function openEditCard(card) {
   openPopup('popup-edit-card-overlay')
 }
 
+// カードチェックリスト描画（編集ポップアップ用）
+async function renderEditCardCheckList(q, setId, currentSetTags) {
+  const list = document.getElementById('edit-card-check-list')
+  const setCards = await fetchSetCardIds(setId)
+  const checkedIds = new Set(setCards.filter(sc => !sc.excluded).map(sc => sc.card_id))
+
+  let filtered = allCards
+  if (q) {
+    filtered = filtered.filter(c =>
+      c.spanish?.toLowerCase().includes(q) ||
+      c.japanese?.toLowerCase().includes(q) ||
+      c.tags?.some(t => t.toLowerCase().includes(q))
+    )
+  }
+
+  list.innerHTML = ''
+  filtered.forEach(card => {
+    const hasTag = currentSetTags.length > 0 && card.tags?.some(t => currentSetTags.includes(t))
+    const isChecked = checkedIds.has(card.id) || hasTag
+    const item = document.createElement('li')
+    item.className = 'card-check-item'
+    item.innerHTML = `
+      <input type="checkbox" id="ecc-${card.id}" value="${card.id}"
+        ${isChecked ? 'checked' : ''}>
+      <div class="card-check-item-text">
+        <div class="card-check-spanish">${card.spanish}</div>
+        <div class="card-check-japanese">${card.japanese}</div>
+      </div>
+    `
+    list.appendChild(item)
+  })
+}
+
 // セット編集ポップアップ
 function openEditSet(set) {
   populateCategorySelects()
@@ -298,20 +331,108 @@ function openEditSet(set) {
   document.getElementById('edit-set-tags').value = (set.tags || []).join(' ')
   document.getElementById('edit-set-scope').value = set.scope || 'plus'
 
+  // タグサジェスト
+  const allTagSet = new Set()
+  allCards.forEach(c => (c.tags || []).forEach(t => allTagSet.add(t)))
+  const allTagList = [...allTagSet].sort()
+
+  const tagsInput = document.getElementById('edit-set-tags')
+  tagsInput.addEventListener('input', () => {
+    const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
+    showEditTagSuggestions(allTagList, currentTags)
+    renderEditCardCheckList(
+      document.getElementById('edit-set-card-search').value.toLowerCase(),
+      set.id,
+      currentTags
+    )
+  })
+
+  function showEditTagSuggestions(tags, current) {
+    const container = document.getElementById('edit-set-tag-suggestions')
+    const unused = tags.filter(t => !current.includes(t))
+    container.innerHTML = ''
+    unused.slice(0, 10).forEach(tag => {
+      const btn = document.createElement('button')
+      btn.className = 'tag-suggestion-item'
+      btn.textContent = tag
+      btn.type = 'button'
+      btn.addEventListener('click', () => {
+        const vals = tagsInput.value.split(/\s+/).filter(t => t)
+        if (!vals.includes(tag)) {
+          tagsInput.value = [...vals, tag].join(' ') + ' '
+          const newTags = tagsInput.value.split(/\s+/).filter(t => t)
+          showEditTagSuggestions(tags, newTags)
+          renderEditCardCheckList(
+            document.getElementById('edit-set-card-search').value.toLowerCase(),
+            set.id,
+            newTags
+          )
+        }
+      })
+      container.appendChild(btn)
+    })
+  }
+
+  // 折りたたみ
+  const collapseBtn = document.getElementById('edit-collapse-toggle')
+  const collapseBody = document.getElementById('edit-collapse-body')
+  collapseBtn.onclick = () => {
+    const isOpen = collapseBody.style.display !== 'none'
+    collapseBody.style.display = isOpen ? 'none' : 'block'
+    collapseBtn.textContent = `カードを選んで追加 ${isOpen ? '▼' : '▲'}`
+  }
+
+  // カード検索
+  document.getElementById('edit-set-card-search').addEventListener('input', (e) => {
+    const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
+    renderEditCardCheckList(e.target.value.toLowerCase(), set.id, currentTags)
+  })
+
+  // 初期描画
+  const initialTags = (set.tags || [])
+  renderEditCardCheckList('', set.id, initialTags)
+  showEditTagSuggestions(allTagList, initialTags)
+
+  // 保存
   document.getElementById('edit-set-save').onclick = async () => {
-    const tags = document.getElementById('edit-set-tags').value
-      .split(/\s+/).filter(t => t)
+    const tags = tagsInput.value.split(/\s+/).filter(t => t)
+    const name = document.getElementById('edit-set-name').value.trim()
+    if (!name) return
 
     await db.from('flashcard_sets').update({
-      name: document.getElementById('edit-set-name').value.trim(),
-      category_id: document.getElementById('edit-set-category').value,
+      name,
+      category_id: document.getElementById('edit-set-category').value || null,
       tags,
       scope: document.getElementById('edit-set-scope').value
     }).eq('id', set.id)
 
+    // タグ自動紐付け同期
+    await syncTagCards(set.id)
+
+    // 手動チェック状態を反映
+    const allCheckboxes = document.querySelectorAll('#edit-card-check-list input[type="checkbox"]')
+    for (const cb of allCheckboxes) {
+      const cardId = cb.value
+      if (cb.checked) {
+        await db.from('flashcard_set_cards').upsert({
+          set_id: set.id,
+          card_id: cardId,
+          is_manual: true,
+          excluded: false
+        }, { onConflict: 'set_id,card_id' })
+      } else {
+        // チェックを外したものは除外フラグを立てる
+        const existing = await db.from('flashcard_set_cards')
+          .select('id').eq('set_id', set.id).eq('card_id', cardId).single()
+        if (existing.data) {
+          await db.from('flashcard_set_cards').update({ excluded: true })
+            .eq('set_id', set.id).eq('card_id', cardId)
+        }
+      }
+    }
+
     closePopup('popup-edit-set-overlay')
     await fetchAll()
-    await syncTagCards(set.id)
     populateSetSelect()
     renderCards()
   }
