@@ -1,434 +1,686 @@
-const SUPABASE_URL = 'https://nsprbshgkxywtwmimkcy.supabase.co'
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5zcHJic2hna3h5d3R3bWlta2N5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMzMxMDAsImV4cCI6MjA5MzkwOTEwMH0.g51y4rq3xEDYD9GJoux7UDBeOpXyqYLDptwQ3LHy6b8'
-const { createClient } = supabase
-const db = createClient(SUPABASE_URL, SUPABASE_KEY)
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-async function checkAuth() {
-  const { data: { session } } = await db.auth.getSession()
-  if (!session) window.location.href = '../login/login.html'
-  return session
+:root {
+  --accent: #C74629;
+  --bg: #F1EDE3;
+  --text: #261F1B;
+  --muted: #8C6355;
+  --surface: #FFFEF5;
+  --earth: #A08420;
+  --slate: #3F4820;
+  --moss: #5A7252;
 }
 
-let allCards = []
-let allSets = []
-let allCategories = []
-let selectedSetId = null
-let filterOpen = false
-let showES = true
-
-async function fetchAll() {
-  const [cardsRes, setsRes, catsRes] = await Promise.all([
-    db.from('cards').select('*').order('created_at', { ascending: false }),
-    db.from('flashcard_sets').select('*').order('created_at', { ascending: false }),
-    db.from('categories').select('*').order('name')
-  ])
-  if (!cardsRes.error) allCards = cardsRes.data
-  if (!setsRes.error) allSets = setsRes.data
-  if (!catsRes.error) allCategories = catsRes.data
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 300;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-async function fetchSetCardIds(setId) {
-  const { data } = await db
-    .from('flashcard_set_cards')
-    .select('card_id, is_manual, excluded')
-    .eq('set_id', setId)
-  return data || []
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  flex-shrink: 0;
 }
 
-async function syncTagCards(setId) {
-  const set = allSets.find(s => s.id === setId)
-  if (!set || !set.tags || set.tags.length === 0) return
-  const matchingCards = allCards.filter(c =>
-    c.tags && c.tags.some(t => set.tags.includes(t))
-  )
-  const existing = await fetchSetCardIds(setId)
-  const existingIds = new Set(existing.map(e => e.card_id))
-  const excludedIds = new Set(existing.filter(e => e.excluded).map(e => e.card_id))
-  for (const card of matchingCards) {
-    if (!existingIds.has(card.id) && !excludedIds.has(card.id)) {
-      await db.from('flashcard_set_cards').insert({
-        set_id: setId,
-        card_id: card.id,
-        is_manual: false,
-        excluded: false
-      })
-    }
-  }
+.header-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.4rem;
+  letter-spacing: 0.15em;
+  color: var(--accent);
 }
 
-function populateCategorySelects() {
-  const filterCat = document.getElementById('filter-category')
-  const editSetCat = document.getElementById('edit-set-category')
-  filterCat.innerHTML = '<option value="">すべて</option>'
-  editSetCat.innerHTML = ''
-  allCategories.forEach(cat => {
-    filterCat.innerHTML += `<option value="${cat.id}">${cat.name}</option>`
-    editSetCat.innerHTML += `<option value="${cat.id}">${cat.name}</option>`
-  })
+.burger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px;
 }
 
-function populateSetSelect(categoryId = '') {
-  const filterSet = document.getElementById('filter-set')
-  filterSet.innerHTML = '<option value="">すべて</option>'
-  const filtered = categoryId
-    ? allSets.filter(s => s.category_id === categoryId)
-    : allSets
-  filtered.forEach(s => {
-    filterSet.innerHTML += `<option value="${s.id}">${s.name}</option>`
-  })
-  if (selectedSetId) filterSet.value = selectedSetId
+.burger-btn span {
+  display: block;
+  width: 22px;
+  height: 1.5px;
+  background: var(--text);
 }
 
-async function renderCards() {
-  const list = document.getElementById('card-list')
-  const empty = document.getElementById('empty-msg')
-  const q = document.getElementById('search-input').value.trim().toLowerCase()
-  const catId = document.getElementById('filter-category').value
-  const setId = document.getElementById('filter-set').value
-  list.innerHTML = ''
-  let cards = [...allCards]
-
-  if (setId) {
-    selectedSetId = setId
-    const setCards = await fetchSetCardIds(setId)
-    const validIds = new Set(setCards.filter(sc => !sc.excluded).map(sc => sc.card_id))
-    cards = cards.filter(c => validIds.has(c.id))
-    showSetDetail(setId, cards.length)
-  } else {
-    selectedSetId = null
-    document.getElementById('set-detail').style.display = 'none'
-  }
-
-  if (q) {
-    cards = cards.filter(c =>
-      c.spanish?.toLowerCase().includes(q) ||
-      c.japanese?.toLowerCase().includes(q) ||
-      c.tags?.some(t => t.toLowerCase().includes(q))
-    )
-  }
-
-  if (cards.length === 0) {
-    empty.style.display = 'block'
-    return
-  }
-  empty.style.display = 'none'
-
-  cards.forEach(card => {
-    const li = document.createElement('li')
-    li.className = 'card-item'
-    li.dataset.id = card.id
-    const tagsHtml = (card.tags || []).map(t => `<span class="tag-badge">${t}</span>`).join('')
-    li.innerHTML = `
-      <div class="card-item-body">
-        <div class="card-spanish">${card.spanish}</div>
-        <div class="card-japanese">${card.japanese}</div>
-        <div class="card-item-meta">
-          <span class="scope-badge">${getScopeLabel(card.scope)}</span>
-          ${tagsHtml}
-        </div>
-      </div>
-      <div class="card-item-actions">
-        <button class="btn-card-action btn-confirm">確認</button>
-        <button class="btn-card-action btn-edit">編集</button>
-        <button class="btn-card-action btn-delete">削除</button>
-      </div>
-      <div class="card-delete-reveal">削除</div>
-    `
-    let startX = 0
-    li.addEventListener('touchstart', e => { startX = e.touches[0].clientX }, { passive: true })
-    li.addEventListener('touchend', e => {
-      const diff = startX - e.changedTouches[0].clientX
-      if (diff > 60) li.classList.add('swiped')
-      else if (diff < -20) li.classList.remove('swiped')
-    })
-    li.querySelector('.card-delete-reveal').addEventListener('click', () => deleteCard(card.id))
-    li.querySelector('.btn-confirm').addEventListener('click', () => openFlip(card))
-    li.querySelector('.btn-edit').addEventListener('click', () => openEditCard(card))
-    li.querySelector('.btn-delete').addEventListener('click', () => deleteCard(card.id))
-    list.appendChild(li)
-  })
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+  z-index: 10;
 }
 
-function showSetDetail(setId, count) {
-  const set = allSets.find(s => s.id === setId)
-  if (!set) return
-  const cat = allCategories.find(c => c.id === set.category_id)
-  document.getElementById('set-detail-name').textContent = set.name
-  document.getElementById('set-detail-meta').textContent = cat ? cat.name : ''
-  document.getElementById('set-detail-count').textContent = `${count}枚`
-  document.getElementById('set-detail').style.display = 'block'
-  document.getElementById('btn-edit-set').onclick = () => openEditSet(set)
-  document.getElementById('btn-delete-set').onclick = () => deleteSet(set.id)
-  document.getElementById('btn-add-card-to-set').onclick = () => {
-    window.location.href = `new/new.html?mode=card&set=${set.id}`
-  }
+.drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100dvh;
+  background: var(--surface);
+  border-left: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  transform: translateX(100%);
+  transition: transform 0.25s;
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  padding: 60px 0 40px;
 }
 
-function getScopeLabel(scope) {
-  switch (scope) {
-    case 'free': return 'Free'
-    case 'plus': return 'Plus'
-    case 'max': return 'Max'
-    default: return '非公開'
-  }
+.drawer.open { transform: translateX(0); }
+
+.drawer-nav {
+  list-style: none;
+  flex: 1;
 }
 
-async function deleteCard(id) {
-  if (!confirm('このカードを削除しますか？')) return
-  await db.from('flashcard_set_cards').delete().eq('card_id', id)
-  await db.from('cards').delete().eq('id', id)
-  await fetchAll()
-  renderCards()
+.drawer-nav li a {
+  display: block;
+  padding: 16px 32px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  transition: color 0.2s;
 }
 
-async function deleteSet(id) {
-  if (!confirm('このフラッシュカードを削除しますか？')) return
-  await db.from('flashcard_set_cards').delete().eq('set_id', id)
-  await db.from('flashcard_sets').delete().eq('id', id)
-  document.getElementById('filter-set').value = ''
-  selectedSetId = null
-  await fetchAll()
-  populateSetSelect()
-  renderCards()
+.drawer-nav li a:hover { color: var(--accent); }
+
+.drawer-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--earth) 30%, transparent);
+  margin: 8px 0;
 }
 
-function openFlip(card) {
-  showES = true
-  updateFlipContent(card)
-  document.getElementById('flip-card-inner').classList.remove('flipped')
-  document.getElementById('flip-btn').onclick = () => {
-    document.getElementById('flip-card-inner').classList.toggle('flipped')
-  }
-  document.getElementById('flip-card').onclick = () => {
-    document.getElementById('flip-card-inner').classList.toggle('flipped')
-  }
-  document.getElementById('flip-lang-btn').onclick = () => {
-    showES = !showES
-    document.getElementById('flip-card-inner').classList.remove('flipped')
-    updateFlipContent(card)
-  }
-  openPopup('popup-flip-overlay')
+.logout-btn {
+  margin: 0 32px;
+  background: none;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-function updateFlipContent(card) {
-  if (showES) {
-    document.getElementById('flip-front').textContent = card.spanish
-    document.getElementById('flip-back').textContent = card.japanese
-  } else {
-    document.getElementById('flip-front').textContent = card.japanese
-    document.getElementById('flip-back').textContent = card.spanish
-  }
+.logout-btn:hover { background: var(--accent); color: var(--surface); }
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 72px;
 }
 
-function openEditCard(card) {
-  document.getElementById('edit-spanish').value = card.spanish
-  document.getElementById('edit-japanese').value = card.japanese
-  document.getElementById('edit-example').value = card.example || ''
-  document.getElementById('edit-hint').value = card.hint || ''
-  document.getElementById('edit-tags').value = (card.tags || []).join(' ')
-  document.getElementById('edit-scope').value = card.scope || 'plus'
-
-  document.getElementById('edit-card-save').onclick = async () => {
-    const tags = document.getElementById('edit-tags').value.split(/\s+/).filter(t => t)
-    await db.from('cards').update({
-      spanish: document.getElementById('edit-spanish').value.trim(),
-      japanese: document.getElementById('edit-japanese').value.trim(),
-      example: document.getElementById('edit-example').value,
-      hint: document.getElementById('edit-hint').value,
-      tags,
-      scope: document.getElementById('edit-scope').value
-    }).eq('id', card.id)
-    for (const set of allSets) await syncTagCards(set.id)
-    closePopup('popup-edit-card-overlay')
-    await fetchAll()
-    renderCards()
-  }
-  openPopup('popup-edit-card-overlay')
+.filter-bar {
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
-async function renderEditCardCheckList(q, setId, currentSetTags) {
-  const list = document.getElementById('edit-card-check-list')
-  const setCards = await fetchSetCardIds(setId)
-  const checkedIds = new Set(setCards.filter(sc => !sc.excluded).map(sc => sc.card_id))
-
-  let filtered = allCards
-  if (q) {
-    filtered = filtered.filter(c =>
-      c.spanish?.toLowerCase().includes(q) ||
-      c.japanese?.toLowerCase().includes(q) ||
-      c.tags?.some(t => t.toLowerCase().includes(q))
-    )
-  }
-
-  list.innerHTML = ''
-  filtered.forEach(card => {
-    const hasTag = currentSetTags.length > 0 && card.tags?.some(t => currentSetTags.includes(t))
-    const isChecked = checkedIds.has(card.id) || hasTag
-    const item = document.createElement('li')
-    item.className = 'card-check-item'
-    item.innerHTML = `
-      <input type="checkbox" id="ecc-${card.id}" value="${card.id}"
-        ${isChecked ? 'checked' : ''}>
-      <div class="card-check-item-text">
-        <div class="card-check-spanish">${card.spanish}</div>
-        <div class="card-check-japanese">${card.japanese}</div>
-      </div>
-    `
-    list.appendChild(item)
-  })
+.filter-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
 }
 
-function openEditSet(set) {
-  populateCategorySelects()
-  document.getElementById('edit-set-category').value = set.category_id || ''
-  document.getElementById('edit-set-name').value = set.name
-  document.getElementById('edit-set-tags').value = (set.tags || []).join(' ')
-  document.getElementById('edit-set-scope').value = set.scope || 'plus'
+.search-icon { font-size: 0.9rem; flex-shrink: 0; }
 
-  const allTagSet = new Set()
-  allCards.forEach(c => (c.tags || []).forEach(t => allTagSet.add(t)))
-  const allTagList = [...allTagSet].sort()
-
-  const tagsInput = document.getElementById('edit-set-tags')
-
-  function showEditTagSuggestions(tags, current) {
-    const container = document.getElementById('edit-set-tag-suggestions')
-    const unused = tags.filter(t => !current.includes(t))
-    container.innerHTML = ''
-    unused.slice(0, 10).forEach(tag => {
-      const btn = document.createElement('button')
-      btn.className = 'tag-suggestion-item'
-      btn.textContent = tag
-      btn.type = 'button'
-      btn.addEventListener('click', () => {
-        const vals = tagsInput.value.split(/\s+/).filter(t => t)
-        if (!vals.includes(tag)) {
-          tagsInput.value = [...vals, tag].join(' ') + ' '
-          const newTags = tagsInput.value.split(/\s+/).filter(t => t)
-          showEditTagSuggestions(tags, newTags)
-          renderEditCardCheckList(
-            document.getElementById('edit-set-card-search').value.toLowerCase(),
-            set.id, newTags
-          )
-        }
-      })
-      container.appendChild(btn)
-    })
-  }
-
-  tagsInput.oninput = () => {
-    const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
-    showEditTagSuggestions(allTagList, currentTags)
-    renderEditCardCheckList(
-      document.getElementById('edit-set-card-search').value.toLowerCase(),
-      set.id, currentTags
-    )
-  }
-
-  const collapseBtn = document.getElementById('edit-collapse-toggle')
-  const collapseBody = document.getElementById('edit-collapse-body')
-  collapseBtn.onclick = () => {
-    const isOpen = collapseBody.style.display !== 'none'
-    collapseBody.style.display = isOpen ? 'none' : 'block'
-    collapseBtn.textContent = `カードを選んで追加 ${isOpen ? '▼' : '▲'}`
-  }
-
-  document.getElementById('edit-set-card-search').oninput = (e) => {
-    const currentTags = tagsInput.value.split(/\s+/).filter(t => t)
-    renderEditCardCheckList(e.target.value.toLowerCase(), set.id, currentTags)
-  }
-
-  const initialTags = set.tags || []
-  renderEditCardCheckList('', set.id, initialTags)
-  showEditTagSuggestions(allTagList, initialTags)
-
-  document.getElementById('edit-set-save').onclick = async () => {
-    const tags = tagsInput.value.split(/\s+/).filter(t => t)
-    const name = document.getElementById('edit-set-name').value.trim()
-    if (!name) return
-
-    await db.from('flashcard_sets').update({
-      name,
-      category_id: document.getElementById('edit-set-category').value || null,
-      tags,
-      scope: document.getElementById('edit-set-scope').value
-    }).eq('id', set.id)
-
-    await syncTagCards(set.id)
-
-    const allCheckboxes = document.querySelectorAll('#edit-card-check-list input[type="checkbox"]')
-    for (const cb of allCheckboxes) {
-      const cardId = cb.value
-      if (cb.checked) {
-        await db.from('flashcard_set_cards').upsert({
-          set_id: set.id,
-          card_id: cardId,
-          is_manual: true,
-          excluded: false
-        }, { onConflict: 'set_id,card_id' })
-      } else {
-        const existing = await db.from('flashcard_set_cards')
-          .select('id').eq('set_id', set.id).eq('card_id', cardId).single()
-        if (existing.data) {
-          await db.from('flashcard_set_cards').update({ excluded: true })
-            .eq('set_id', set.id).eq('card_id', cardId)
-        }
-      }
-    }
-
-    closePopup('popup-edit-set-overlay')
-    await fetchAll()
-    populateSetSelect()
-    renderCards()
-  }
-
-  openPopup('popup-edit-set-overlay')
+.filter-top input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
-function openPopup(id) { document.getElementById(id).classList.add('open') }
-function closePopup(id) { document.getElementById(id).classList.remove('open') }
+.filter-top input::placeholder { color: var(--muted); }
 
-document.getElementById('filter-toggle-btn').addEventListener('click', () => {
-  filterOpen = !filterOpen
-  document.getElementById('filter-body').classList.toggle('open', filterOpen)
-  document.getElementById('filter-toggle-btn').textContent = filterOpen ? '▼' : '▲'
-})
+.filter-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 4px;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
 
-document.getElementById('search-input').addEventListener('input', renderCards)
-document.getElementById('filter-category').addEventListener('change', (e) => {
-  populateSetSelect(e.target.value)
-  renderCards()
-})
-document.getElementById('filter-set').addEventListener('change', renderCards)
+.filter-body {
+  display: none;
+  flex-direction: column;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+}
 
-document.getElementById('btn-new-card').addEventListener('click', () => {
-  window.location.href = 'new/new.html?mode=card'
-})
-document.getElementById('btn-new-set').addEventListener('click', () => {
-  window.location.href = 'new/new.html?mode=set'
-})
+.filter-body.open { display: flex; }
 
-document.getElementById('popup-flip-close').addEventListener('click', () => closePopup('popup-flip-overlay'))
-document.getElementById('popup-edit-card-close').addEventListener('click', () => closePopup('popup-edit-card-overlay'))
-document.getElementById('popup-edit-set-close').addEventListener('click', () => closePopup('popup-edit-set-overlay'))
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+}
 
-document.getElementById('burger-btn').addEventListener('click', () => {
-  document.getElementById('drawer').classList.toggle('open')
-  document.getElementById('drawer-overlay').classList.toggle('open')
-})
-document.getElementById('drawer-overlay').addEventListener('click', () => {
-  document.getElementById('drawer').classList.remove('open')
-  document.getElementById('drawer-overlay').classList.remove('open')
-})
-document.getElementById('logout-btn').addEventListener('click', async () => {
-  await db.auth.signOut()
-  window.location.href = '../login/login.html'
-})
+.filter-row label {
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+  width: 120px;
+  flex-shrink: 0;
+}
 
-;(async () => {
-  await checkAuth()
-  await fetchAll()
-  populateCategorySelects()
-  populateSetSelect()
-  renderCards()
-})()
+.filter-row select {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 0;
+  padding: 8px 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  outline: none;
+}
+
+.set-detail {
+  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  padding: 16px;
+}
+
+.set-detail-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+}
+
+.set-detail-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+
+.set-detail-count {
+  font-size: 0.85rem;
+  color: var(--earth);
+  margin-bottom: 12px;
+}
+
+.set-detail-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  color: var(--earth);
+  border-bottom: 1px solid var(--earth);
+  cursor: pointer;
+  padding: 2px 0;
+  transition: 0.2s;
+}
+
+.btn-text:hover { color: var(--accent); border-color: var(--accent); }
+.btn-text.btn-danger { color: var(--muted); border-color: var(--muted); }
+.btn-text.btn-danger:hover { color: var(--accent); border-color: var(--accent); }
+
+.card-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-item {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.25s;
+}
+
+.card-item-body {
+  flex: 1;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-spanish {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.card-japanese {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.card-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.scope-badge {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.tag-badge {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--earth) 15%, transparent);
+  color: var(--earth);
+}
+
+.card-item-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-left: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+}
+
+.btn-card-action {
+  background: none;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.btn-card-action:hover { color: var(--accent); }
+
+.card-delete-reveal {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--surface);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transform: translateX(100%);
+  transition: transform 0.25s;
+}
+
+.card-item.swiped .card-delete-reveal { transform: translateX(0); }
+.card-item.swiped { transform: translateX(-80px); }
+
+.empty-msg {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 48px 16px;
+  display: none;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--surface);
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.btn-footer {
+  background: none;
+  border: 1px solid var(--earth);
+  color: var(--earth);
+  padding: 10px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-footer:hover { background: var(--earth); color: var(--surface); }
+
+.btn-footer--accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.btn-footer--accent:hover { opacity: 0.85; background: var(--accent); color: var(--surface); }
+
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(38,31,27,0.5);
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+
+.popup-overlay.open { opacity: 1; pointer-events: all; }
+
+.popup {
+  background: var(--surface);
+  width: 100%;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 32px 24px 48px;
+  border-top: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  position: relative;
+  transform: translateY(40px);
+  transition: transform 0.25s;
+}
+
+.popup-overlay.open .popup { transform: translateY(0); }
+
+.popup-close {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.popup-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1.3rem;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.popup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.popup-form label {
+  font-size: 0.68rem;
+  letter-spacing: 0.25em;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.popup-form input,
+.popup-form textarea,
+.popup-form select {
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 0;
+  padding: 12px 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+.popup-form textarea { min-height: 80px; resize: vertical; }
+
+.popup-form input:focus,
+.popup-form textarea:focus,
+.popup-form select:focus { border-color: var(--accent); }
+
+.popup-save {
+  width: 100%;
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  padding: 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.popup-save:hover { opacity: 0.85; }
+
+.popup-flip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 48px 24px;
+}
+
+.flip-lang-btn {
+  background: none;
+  border: 1px solid var(--earth);
+  color: var(--earth);
+  padding: 6px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.flip-lang-btn:hover { background: var(--earth); color: var(--surface); }
+
+.flip-card {
+  width: 100%;
+  max-width: 320px;
+  height: 200px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.flip-card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+}
+
+.flip-card-inner.flipped { transform: rotateY(180deg); }
+
+.flip-front, .flip-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  background: var(--surface);
+  font-size: 1.2rem;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.flip-back {
+  transform: rotateY(180deg);
+  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
+}
+
+.flip-btn {
+  background: var(--accent);
+  color: var(--surface);
+  border: none;
+  padding: 12px 32px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.3em;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.flip-btn:hover { opacity: 0.85; }
+
+/* ポップアップ内折りたたみ */
+.popup .collapse-section {
+  border: 1px solid color-mix(in srgb, var(--earth) 25%, transparent);
+  margin-top: 16px;
+}
+
+.popup .collapse-toggle {
+  width: 100%;
+  background: color-mix(in srgb, var(--earth) 8%, var(--surface));
+  border: none;
+  padding: 14px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.popup .collapse-toggle:hover {
+  background: color-mix(in srgb, var(--earth) 15%, var(--surface));
+}
+
+.popup .collapse-body {
+  border-top: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
+}
+
+.popup .card-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+  background: var(--surface);
+}
+
+.popup .card-search-wrap input {
+  border: none;
+  background: none;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  width: 100%;
+  outline: none;
+}
+
+.popup .card-check-list {
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.card-check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 12%, transparent);
+  cursor: pointer;
+}
+
+.card-check-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.card-check-item-text { flex: 1; }
+
+.card-check-spanish {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.card-check-japanese {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* タグサジェスト */
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  min-height: 0;
+}
+
+.tag-suggestion-item {
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--earth) 15%, transparent);
+  color: var(--earth);
+  cursor: pointer;
+  transition: 0.15s;
+  border: none;
+  font-family: 'Noto Serif JP', serif;
+}
+
+.tag-suggestion-item:hover {
+  background: var(--earth);
+  color: var(--surface);
+}
