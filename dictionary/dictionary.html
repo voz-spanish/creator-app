@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>辞書管理</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dictionary.css">
+</head>
+<body>
+
+  <header class="header">
+    <span class="header-logo">Diccionario</span>
+    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <nav class="drawer" id="drawer">
+    <ul class="drawer-nav">
+      <li><a href="../home/home.html">ホーム</a></li>
+      <li class="drawer-divider"></li>
+      <li><a href="../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../question/question.html">質問</a></li>
+      <li><a href="../announce/announce.html">アナウンス</a></li>
+    </ul>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </nav>
+
+  <main class="main">
+
+    <div class="filter-bar">
+      <div class="filter-top">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="キーワードで検索" />
+        <button class="filter-toggle-btn" id="filter-toggle-btn">▲</button>
+      </div>
+      <div class="filter-body" id="filter-body">
+        <div class="filter-row">
+          <label>フォーマット</label>
+          <select id="filter-format">
+            <option value="">すべて</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <ul class="entry-list" id="entry-list"></ul>
+    <p class="empty-msg" id="empty-msg">登録がありません</p>
+
+  </main>
+
+  <footer class="footer">
+    <button class="btn-add" id="btn-add">＋</button>
+  </footer>
+
+  <!-- 確認ポップアップ -->
+  <div class="popup-overlay" id="popup-detail-overlay">
+    <div class="popup popup-detail">
+      <button class="popup-close" id="popup-detail-close">✕</button>
+      <div id="popup-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- 編集ポップアップ（iframeで編集ページを開く） -->
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="dictionary.js"></script>
+</body>
+</html>
