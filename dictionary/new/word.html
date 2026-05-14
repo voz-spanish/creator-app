@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>単語登録</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="new.css">
+  <link rel="stylesheet" href="word.css">
+</head>
+<body>
+
+  <header class="header">
+    <span class="header-logo">Diccionario</span>
+    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <nav class="drawer" id="drawer">
+    <ul class="drawer-nav">
+      <li><a href="../../home/home.html">ホーム</a></li>
+      <li class="drawer-divider"></li>
+      <li><a href="../../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../../question/question.html">質問</a></li>
+      <li><a href="../../announce/announce.html">アナウンス</a></li>
+    </ul>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </nav>
+
+  <main class="main">
+    <div class="form-wrap">
+
+      <div class="page-header">
+        <a class="back-link" href="../dictionary.html">← 一覧に戻る</a>
+        <h1 class="page-title" id="page-title">単語登録</h1>
+      </div>
+
+      <!-- 共通項目 -->
+      <div class="section-block">
+        <div class="field">
+          <label>スペイン語</label>
+          <input type="text" id="input-spanish" placeholder="español" />
+        </div>
+        <div class="field">
+          <label>日本語</label>
+          <input type="text" id="input-japanese" placeholder="日本語の意味" />
+        </div>
+        <div class="field">
+          <label>例文（任意）</label>
+          <textarea id="input-example" placeholder="例文を入力"></textarea>
+        </div>
+        <div class="field">
+          <label>💡 ヒント（任意）</label>
+          <textarea id="input-hint" placeholder="覚え方のヒントなど"></textarea>
+        </div>
+        <div class="field">
+          <label>公開範囲</label>
+          <select id="input-scope">
+            <option value="plus">Plus</option>
+            <option value="free">Free</option>
+            <option value="max">Max</option>
+            <option value="draft">非公開</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- カード登録 -->
+      <div class="section-block">
+        <div class="field">
+          <label>フラッシュカードに登録する</label>
+          <div class="toggle-wrap">
+            <label class="toggle-label">
+              <input type="checkbox" id="toggle-card" />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              カードとして登録する
+            </label>
+          </div>
+        </div>
+        <div id="card-fields" style="display:none">
+          <div class="card-fields-inner">
+            <div class="field">
+              <label>タグ（スペース区切りで複数入力）</label>
+              <input type="text" id="card-tags" placeholder="例: 乗り物 旅行" />
+            </div>
+            <div class="field">
+              <label>フラッシュカード（複数選択可・任意）</label>
+              <div class="set-checkboxes" id="set-checkboxes"></div>
+            </div>
+            <div class="field">
+              <label>カードの公開範囲</label>
+              <select id="card-scope">
+                <option value="plus">Plus</option>
+                <option value="free">Free</option>
+                <option value="max">Max</option>
+                <option value="draft">非公開</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 品詞選択 -->
+      <div class="section-block">
+        <div class="field">
+          <label>品詞</label>
+          <select id="pos-select">
+            <option value="">選択してください</option>
+          </select>
+          <button class="btn-add-format" id="btn-add-pos">＋ 品詞を追加</button>
+          <div class="new-item-wrap" id="new-pos-wrap" style="display:none">
+            <input type="text" id="new-pos-input" placeholder="新しい品詞名" />
+            <select id="new-pos-basetype">
+              <option value="名詞">名詞と同じ形式</option>
+              <option value="形容詞">形容詞と同じ形式</option>
+              <option value="動詞">動詞と同じ形式</option>
+              <option value="助動詞">助動詞と同じ形式</option>
+              <option value="その他">その他（追加項目なし）</option>
+            </select>
+            <button class="btn-save-item" id="btn-save-pos">追加</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 品詞ごとの追加項目 -->
+      <div id="pos-fields"></div>
+
+      <p class="error-msg" id="error-msg"></p>
+
+    </div>
+  </main>
+
+  <footer class="footer-fixed">
+    <button class="btn-save" id="btn-save">保存する</button>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="word.js"></script>
+</body>
+</html>
