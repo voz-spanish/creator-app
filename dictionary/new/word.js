@@ -458,8 +458,6 @@ function addConjugationRow(tenseKey, type, subject, form, fixedPre, example, mea
       <div class="row-label">${subject || ''}</div>
       <div class="row-fixed">${getIraFixed(idx)}</div>
       <input type="text" placeholder="動詞の原形" class="row-infinitive" value="${form || ''}" />
-      <textarea placeholder="例文(ES)" class="row-example">${example || ''}</textarea>
-      <input type="text" placeholder="意味(JP)" class="row-meaning" value="${meaning || ''}" />
     `
   } else if (tenseKey === 'estar') {
     row.classList.add('estar-row')
@@ -467,8 +465,6 @@ function addConjugationRow(tenseKey, type, subject, form, fixedPre, example, mea
       <div class="row-label">${subject || ''}</div>
       <div class="row-fixed">${getEstarFixed(idx)}</div>
       <input type="text" placeholder="現在分詞 (-ndo)" class="row-gerund" value="${form || ''}" />
-      <textarea placeholder="例文(ES)" class="row-example">${example || ''}</textarea>
-      <input type="text" placeholder="意味(JP)" class="row-meaning" value="${meaning || ''}" />
     `
   } else if (tenseKey === 'perfect') {
     row.classList.add('haber-row')
@@ -476,16 +472,12 @@ function addConjugationRow(tenseKey, type, subject, form, fixedPre, example, mea
       <div class="row-label">${subject || ''}</div>
       <div class="row-fixed">${getHaberFixed(idx)}</div>
       <input type="text" placeholder="過去分詞 (-ado/-ido)" class="row-participle" value="${form || ''}" />
-      <textarea placeholder="例文(ES)" class="row-example">${example || ''}</textarea>
-      <input type="text" placeholder="意味(JP)" class="row-meaning" value="${meaning || ''}" />
     `
   } else {
     row.classList.add('full-row')
     row.innerHTML = `
       <div class="row-label">${subject || ''}</div>
       <input type="text" placeholder="活用形" class="row-form" value="${form || ''}" />
-      <textarea placeholder="例文(ES)" class="row-example">${example || ''}</textarea>
-      <input type="text" placeholder="意味(JP)" class="row-meaning" value="${meaning || ''}" />
     `
   }
 
