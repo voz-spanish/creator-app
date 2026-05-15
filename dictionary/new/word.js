@@ -169,8 +169,8 @@ function autoNoun() {
   const plural = word.endsWith('z')
     ? word.slice(0, -1) + 'ces'
     : word.match(/[aeiouáéíóú]$/i)
-      ? word + 'ses'
-      : word + 's'
+      ? word + 's'
+      : word + 'es'
   document.getElementById('noun-singular').value = `${art} ${word}`
   document.getElementById('noun-plural').value = `${arts} ${plural}`
 }
