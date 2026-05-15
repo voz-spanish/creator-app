@@ -330,22 +330,17 @@ function renderPronounFields(container) {
 // ===== 動詞 =====
 const VERB_TENSES = [
   { key: 'present', name: '現在形', meaning: 'Presente' },
-  { key: 'ira', name: 'ir a + 不定詞', meaning: '近未来' },
   { key: 'estar', name: 'estar + 現在分詞', meaning: '進行形' },
+  { key: 'ira', name: 'ir a + 不定詞', meaning: '近未来' },
   { key: 'preterite', name: '点過去', meaning: 'Pretérito' },
-  { key: 'imperative', name: '命令形', meaning: 'Imperativo' },
-  { key: 'imperfect', name: '線過去', meaning: 'Imperfecto' },
   { key: 'perfect', name: '現在完了', meaning: 'Perfecto' },
-  { key: 'subjunctive', name: '接続法', meaning: 'Subjuntivo' },
-  { key: 'future', name: '未来形', meaning: 'Futuro' },
-  { key: 'conditional', name: '条件形', meaning: 'Condicional' },
+  { key: 'imperfect', name: '線過去', meaning: 'Imperfecto' },
 ]
 
 const AUX_TENSES = [
   { key: 'present', name: '現在形', meaning: 'Presente' },
   { key: 'preterite', name: '点過去', meaning: 'Pretérito' },
   { key: 'imperfect', name: '線過去', meaning: 'Imperfecto' },
-  { key: 'conditional', name: '条件形', meaning: 'Condicional' },
 ]
 
 function renderVerbFields(container) {
@@ -384,6 +379,9 @@ function renderConjugationFields(container, tenses, type) {
       autoVerbAll(type)
     }
   })
+
+  // 品詞選択時点でスペイン語が入力済みなら即時自動推定
+  autoVerbAll(type)
 }
 
 function createTenseBlock(key, name, meaning, type, isCustom = false) {
@@ -437,16 +435,18 @@ function createTenseBlock(key, name, meaning, type, isCustom = false) {
     addConjugationRow(key, type, null, '', '', '', '')
   })
 
-  // デフォルト行を追加
+  // デフォルト行を追加（blockはまだDOM未追加のためcontextElとして渡す）
   SUBJECTS.forEach((subj, i) => {
-    addConjugationRow(key, type, subj, '', '', '', '', i)
+    addConjugationRow(key, type, subj, '', '', '', '', i, block)
   })
 
   return block
 }
 
-function addConjugationRow(tenseKey, type, subject, form, fixedPre, example, meaning, idx) {
-  const rowsEl = document.getElementById(`rows-${tenseKey}`)
+function addConjugationRow(tenseKey, type, subject, form, fixedPre, example, meaning, idx, contextEl) {
+  const rowsEl = contextEl
+    ? contextEl.querySelector(`#rows-${tenseKey}`)
+    : document.getElementById(`rows-${tenseKey}`)
   if (!rowsEl) return
 
   const row = document.createElement('div')
