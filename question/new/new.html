@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>質問登録</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="new.css">
+</head>
+<body>
+
+  <header class="header">
+    <span class="header-logo">Pregunta del Día</span>
+    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <nav class="drawer" id="drawer">
+    <ul class="drawer-nav">
+      <li><a href="../../home/home.html">ホーム</a></li>
+      <li class="drawer-divider"></li>
+      <li><a href="../../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../../question/question.html">質問</a></li>
+      <li><a href="../../announce/announce.html">アナウンス</a></li>
+    </ul>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </nav>
+
+  <main class="main">
+    <div class="form-wrap">
+
+      <div class="page-header">
+        <a class="back-link" href="../question.html">← 一覧に戻る</a>
+        <h1 class="page-title" id="page-title">新規質問</h1>
+      </div>
+
+      <!-- カテゴリ・タグ -->
+      <div class="section-card">
+        <div class="field">
+          <label>カテゴリ</label>
+          <select id="input-category">
+            <option value="">選択してください</option>
+          </select>
+          <button class="btn-add-item" id="btn-add-category">＋ カテゴリを追加</button>
+          <div class="new-item-wrap" id="new-category-wrap" style="display:none">
+            <input type="text" id="new-category-input" placeholder="新しいカテゴリ名" />
+            <button class="btn-save-item" id="btn-save-category">追加</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>タグ（スペース区切りで複数入力）</label>
+          <input type="text" id="input-tags" placeholder="例: 旅行 文化" />
+        </div>
+      </div>
+
+      <!-- スペイン語入力 -->
+      <div class="section-card">
+        <div class="field">
+          <label>スペイン語（記号付き入力）</label>
+          <div class="input-hint-text">
+            単語: そのまま　( ) : 表現（細分化なし）　[ ] : フレーズ（細分化あり）
+          </div>
+          <textarea id="input-spanish-raw" placeholder="例: ¿[Qué fue] [(lo que) más te sorprendió] [cuando llegaste] a (México)?"></textarea>
+        </div>
+        <button class="btn-auto" id="btn-generate-display" type="button">✨ 表示用テキストを生成</button>
+        <div class="field" style="margin-top:12px">
+          <label>表示される質問（ES）</label>
+          <div class="display-preview" id="display-preview"></div>
+        </div>
+      </div>
+
+      <!-- 日本語 -->
+      <div class="section-card">
+        <div class="field">
+          <label>質問全体の日本語意味</label>
+          <textarea id="input-japanese" placeholder="日本語で質問の意味を入力"></textarea>
+        </div>
+      </div>
+
+      <!-- 語彙登録 -->
+      <div class="section-card">
+        <div class="section-card-title">言葉ごとの日本語登録</div>
+        <button class="btn-auto" id="btn-parse-vocab" type="button">✨ 語彙を自動解析</button>
+        <div id="vocab-list" style="margin-top:12px"></div>
+      </div>
+
+      <!-- 文法ポイント -->
+      <div class="section-card">
+        <div class="section-card-title">文法ポイント（任意）</div>
+        <div id="grammar-list"></div>
+        <button class="btn-add-row" id="btn-add-grammar">＋ 文法を追加</button>
+      </div>
+
+      <!-- プレビュー -->
+      <div class="section-card">
+        <div class="section-card-title">プレビュー</div>
+        <div class="preview-wrap" id="preview-wrap">
+          <div class="preview-placeholder">スペイン語を入力後、語彙を解析するとプレビューが表示されます</div>
+        </div>
+        <div id="preview-bubble" class="preview-meaning-bubble" style="display:none"></div>
+      </div>
+
+      <!-- ヒント -->
+      <div class="section-card">
+        <div class="section-card-title">💡 回答ヒント（任意）</div>
+        <div id="hint-list"></div>
+        <button class="btn-add-row" id="btn-add-hint">＋ ヒントを追加</button>
+      </div>
+
+      <!-- 回答例 -->
+      <div class="section-card">
+        <div class="section-card-title">回答例（任意）</div>
+        <div id="answer-list"></div>
+        <button class="btn-add-row" id="btn-add-answer">＋ 回答例を追加</button>
+      </div>
+
+      <!-- 公開範囲 -->
+      <div class="section-card">
+        <div class="field">
+          <label>公開範囲</label>
+          <select id="input-scope">
+            <option value="plus">Plus</option>
+            <option value="free">Free</option>
+            <option value="max">Max</option>
+            <option value="draft">非公開</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="error-msg" id="error-msg"></p>
+
+    </div>
+  </main>
+
+  <footer class="footer-fixed">
+    <button class="btn-save" id="btn-save">保存する</button>
+  </footer>
+
+  <!-- 辞書確認ポップアップ -->
+  <div class="popup-overlay" id="popup-dict-overlay">
+    <div class="popup">
+      <button class="popup-close" id="popup-dict-close">✕</button>
+      <h2 class="popup-title" id="popup-dict-title">辞書</h2>
+      <div id="popup-dict-content"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="new.js"></script>
+</body>
+</html>
