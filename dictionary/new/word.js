@@ -142,7 +142,6 @@ function renderNounFields(container) {
       <label>複数 Plural</label>
       <input type="text" id="noun-plural" placeholder="例: las casas" />
     </div>
-    <button class="btn-auto" id="btn-noun-auto" type="button">✨ 自動生成</button>
   `
   container.appendChild(block)
 
@@ -159,7 +158,6 @@ function renderNounFields(container) {
     autoNoun()
   })
   document.getElementById('input-spanish').addEventListener('input', autoNoun)
-  document.getElementById('btn-noun-auto').addEventListener('click', autoNoun)
   autoNoun()
 }
 
@@ -272,14 +270,12 @@ function renderAdjectiveFields(container) {
       <div class="field"><label>女性・単数</label><input type="text" id="adj-fs" /></div>
       <div class="field"><label>女性・複数</label><input type="text" id="adj-fp" /></div>
     </div>
-    <button class="btn-auto" id="btn-adj-auto" type="button">✨ 自動推定</button>
   `
   container.appendChild(block)
 
   document.getElementById('input-spanish').addEventListener('input', () => {
     if (document.getElementById('pos-select').value === '形容詞') autoAdjective()
   })
-  document.getElementById('btn-adj-auto').addEventListener('click', autoAdjective)
   autoAdjective()
 }
 
