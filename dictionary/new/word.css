@@ -110,19 +110,19 @@
 }
 
 .conjugation-row.full-row {
-  grid-template-columns: 1fr 1fr 2fr 1fr;
+  grid-template-columns: 1fr 2fr;
 }
 
 .conjugation-row.ira-row {
-  grid-template-columns: 1fr auto 1fr 2fr 1fr;
+  grid-template-columns: 1fr auto 1fr;
 }
 
 .conjugation-row.estar-row {
-  grid-template-columns: 1fr auto 1fr 2fr 1fr;
+  grid-template-columns: 1fr auto 1fr;
 }
 
 .conjugation-row.haber-row {
-  grid-template-columns: 1fr auto 1fr 2fr 1fr;
+  grid-template-columns: 1fr auto 1fr;
 }
 
 .row-label {
