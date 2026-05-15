@@ -403,7 +403,6 @@ function createTenseBlock(key, name, meaning, type, isCustom = false) {
         ${nameInput}${meaningInput}
       </div>
       <div class="tense-actions">
-        <button class="btn-auto btn-tense-auto" type="button" style="padding:4px 10px;font-size:0.7rem">✨ 自動</button>
         <button class="btn-tense-delete" type="button">全削除</button>
         <span class="tense-toggle-icon">▼</span>
       </div>
@@ -423,11 +422,6 @@ function createTenseBlock(key, name, meaning, type, isCustom = false) {
   // 全削除
   block.querySelector('.btn-tense-delete').addEventListener('click', () => {
     if (confirm(`「${name || key}」の活用をすべて削除しますか？`)) block.remove()
-  })
-
-  // 自動推定
-  block.querySelector('.btn-tense-auto').addEventListener('click', () => {
-    autoVerbTense(key, type)
   })
 
   // 行追加
