@@ -101,19 +101,28 @@
     </div>
 
     <!-- Step 2: Audio登録（YouTube） -->
-    <div class="step-content" id="step-2" style="display:none">
+<div class="step-content" id="step-2" style="display:none">
 
-      <!-- YouTube固定ヘッダー -->
-      <div class="youtube-header" id="youtube-header">
-        <div class="youtube-player-wrap">
-          <div id="youtube-player"></div>
-        </div>
-        <div class="youtube-id-row">
-          <input type="text" id="yt-id-input" placeholder="YouTube 動画ID（例: FoBUU18WGRA）" />
-          <button class="btn-load" id="btn-load-yt">読み込む</button>
-        </div>
-        <div class="audio-current-label" id="audio-current-label"></div>
-      </div>
+  <!-- YouTube固定ヘッダー（固定） -->
+  <div class="youtube-header" id="youtube-header">
+    <div class="youtube-player-wrap">
+      <div id="youtube-player"></div>
+    </div>
+    <div class="youtube-id-row">
+      <input type="text" id="yt-id-input" placeholder="YouTube 動画ID（例: FoBUU18WGRA）" />
+      <button class="btn-load" id="btn-load-yt">読み込む</button>
+    </div>
+    <div class="audio-current-label" id="audio-current-label"></div>
+  </div>
+
+  <!-- スクロールエリア -->
+  <div class="step-2-scroll">
+    <div class="audio-blocks" id="audio-blocks"></div>
+    <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
+    <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
+  </div>
+
+</div>
 
       <!-- Audioブロック一覧 -->
       <div class="audio-blocks" id="audio-blocks"></div>
