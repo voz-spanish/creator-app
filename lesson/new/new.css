@@ -17,8 +17,6 @@ body {
   font-family: 'Noto Serif JP', serif;
   font-weight: 300;
   min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
 }
 
 .header {
@@ -29,7 +27,6 @@ body {
   height: 56px;
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
-  flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -137,9 +134,8 @@ body {
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
   gap: 0;
-  flex-shrink: 0;
   position: sticky;
-  top: 56px; /* header height */
+  top: 56px;
   z-index: 4;
 }
 
@@ -189,8 +185,6 @@ body {
 }
 
 .main {
-  flex: 1;
-  overflow-y: auto;
   padding-bottom: 80px;
 }
 
