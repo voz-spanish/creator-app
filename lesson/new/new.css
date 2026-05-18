@@ -17,6 +17,8 @@ body {
   font-family: 'Noto Serif JP', serif;
   font-weight: 300;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -27,6 +29,7 @@ body {
   height: 56px;
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -134,9 +137,7 @@ body {
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
   gap: 0;
-  position: sticky;
-  top: 56px;
-  z-index: 4;
+  flex-shrink: 0;
 }
 
 .step-item {
@@ -185,6 +186,8 @@ body {
 }
 
 .main {
+  flex: 1;
+  overflow-y: auto;
   padding-bottom: 80px;
 }
 
@@ -309,7 +312,7 @@ input::placeholder, textarea::placeholder {
 /* Step 2: YouTube */
 .youtube-header {
   position: sticky;
-  top: 104px; /* header(56px) + step-bar(48px) */
+  top: 0;
   z-index: 3;
   background: #000;
 }
@@ -330,7 +333,6 @@ input::placeholder, textarea::placeholder {
   display: flex;
   gap: 0;
   background: #111;
-  padding: 10px 12px;
 }
 
 .youtube-id-row input {
