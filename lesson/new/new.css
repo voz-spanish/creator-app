@@ -138,6 +138,9 @@ body {
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
   gap: 0;
   flex-shrink: 0;
+  position: sticky;
+  top: 56px; /* header height */
+  z-index: 4;
 }
 
 .step-item {
@@ -187,30 +190,11 @@ body {
 
 .main {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.step-content {
-  width: 100%;
-  flex: 1;
   overflow-y: auto;
   padding-bottom: 80px;
 }
 
-#step-2 {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding-bottom: 0;
-}
-
-.step-2-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 80px;
-}
+.step-content { width: 100%; }
 
 /* Step 1 */
 .form-wrap {
@@ -331,17 +315,13 @@ input::placeholder, textarea::placeholder {
 /* Step 2: YouTube */
 .youtube-header {
   position: sticky;
-  top: 0;
+  top: 104px; /* header(56px) + step-bar(48px) */
   z-index: 3;
   background: #000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
 .youtube-player-wrap {
   width: 100%;
-  max-width: 400px;
   aspect-ratio: 16/9;
   background: #000;
 }
@@ -356,7 +336,7 @@ input::placeholder, textarea::placeholder {
   display: flex;
   gap: 0;
   background: #111;
-  width: 100%;
+  padding: 10px 12px;
 }
 
 .youtube-id-row input {
@@ -365,19 +345,19 @@ input::placeholder, textarea::placeholder {
   border: none;
   border-right: none;
   color: #eee;
-  padding: 10px 14px;
+  padding: 12px 14px;
   font-size: 0.85rem;
   border-radius: 0;
 }
 
 .youtube-id-row input::placeholder { color: #666; }
-.youtube-id-row input:focus { outline: none; }
+.youtube-id-row input:focus { outline: none; border-color: transparent; }
 
 .btn-load {
   background: var(--accent);
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 12px 20px;
   font-family: 'Noto Serif JP', serif;
   font-size: 0.82rem;
   letter-spacing: 0.1em;
@@ -389,13 +369,12 @@ input::placeholder, textarea::placeholder {
 .btn-load:hover { opacity: 0.85; }
 
 .audio-current-label {
-  padding: 5px 14px;
+  padding: 6px 14px;
   background: #111;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   letter-spacing: 0.1em;
-  min-height: 26px;
-  width: 100%;
+  min-height: 30px;
 }
 
 /* Audioブロック */
