@@ -138,9 +138,6 @@ body {
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
   gap: 0;
   flex-shrink: 0;
-  position: sticky;
-  top: 56px; /* headerの高さ分 */
-  z-index: 4;
 }
 
 .step-item {
@@ -315,15 +312,13 @@ input::placeholder, textarea::placeholder {
 /* Step 2: YouTube */
 .youtube-header {
   position: sticky;
-  top: 104px; /* header(56px) + step-bar(約48px) */
+  top: 0;
   z-index: 3;
   background: #000;
 }
 
 .youtube-player-wrap {
   width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
   aspect-ratio: 16/9;
   background: #000;
 }
@@ -338,7 +333,6 @@ input::placeholder, textarea::placeholder {
   display: flex;
   gap: 0;
   background: #111;
-  padding: 0 24px; /* 両サイドに余白 */
 }
 
 .youtube-id-row input {
@@ -371,7 +365,7 @@ input::placeholder, textarea::placeholder {
 .btn-load:hover { opacity: 0.85; }
 
 .audio-current-label {
-  padding: 6px 38px; /* id-rowの余白(24px) + 元の余白(14px) に合わせる */
+  padding: 6px 14px;
   background: #111;
   color: var(--accent);
   font-size: 0.78rem;
