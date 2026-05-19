@@ -46,12 +46,7 @@ function loadYouTubeAPI() {
 function showStep(step) {
   currentStep = step
   ;[1, 2, 3].forEach(s => {
-    const el = document.getElementById(`step-${s}`)
-    if (s === step) {
-      el.style.display = s === 2 ? 'flex' : 'block'
-    } else {
-      el.style.display = 'none'
-    }
+    document.getElementById(`step-${s}`).style.display = s === step ? 'block' : 'none'
     const ind = document.getElementById(`step-${s}-indicator`)
     ind.classList.toggle('active', s === step)
     ind.classList.toggle('done', s < step)
@@ -158,10 +153,9 @@ function updateAudioCurrentLabel() {
 }
 
 function formatSec(sec) {
-  const total = Math.round(sec * 100) / 100
-  const m = Math.floor(total / 60)
-  const s = (total % 60).toFixed(2)
-  return `${m}:${String(s).padStart(5, '0')}`
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function renderAudioBlock(idx) {
@@ -184,12 +178,12 @@ function renderAudioBlock(idx) {
       <div class="sec-input-row">
         <div class="sec-input-wrap">
           <label>開始秒</label>
-          <input type="number" class="audio-start" min="0" step="0.01" value="${audio.start_sec || 0}" />
+          <input type="number" class="audio-start" min="0" value="${audio.start_sec || 0}" />
         </div>
         <button class="btn-mark btn-mark-start">▶ ここから</button>
         <div class="sec-input-wrap">
           <label>終了秒</label>
-          <input type="number" class="audio-end" min="0" step="0.01" value="${audio.end_sec ?? ''}" placeholder="未設定" />
+          <input type="number" class="audio-end" min="0" value="${audio.end_sec ?? ''}" placeholder="未設定" />
         </div>
         <button class="btn-mark btn-mark-end">■ ここまで</button>
         <button class="btn-play-range">▶ 再生</button>
@@ -218,7 +212,7 @@ function renderAudioBlock(idx) {
   // ▶ ここから
   block.querySelector('.btn-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.round(ytPlayer.getCurrentTime() * 100) / 100
+    const sec = Math.floor(ytPlayer.getCurrentTime())
     block.querySelector('.audio-start').value = sec
     audioBlocks[idx].start_sec = sec
     await saveAudioRange(idx)
@@ -229,7 +223,7 @@ function renderAudioBlock(idx) {
   // ■ ここまで
   block.querySelector('.btn-mark-end').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.round(ytPlayer.getCurrentTime() * 100) / 100
+    const sec = Math.floor(ytPlayer.getCurrentTime())
     block.querySelector('.audio-end').value = sec
     audioBlocks[idx].end_sec = sec
     await saveAudioRange(idx)
@@ -251,12 +245,12 @@ function renderAudioBlock(idx) {
 
   // 秒数手動入力
   block.querySelector('.audio-start').addEventListener('change', async (e) => {
-    audioBlocks[idx].start_sec = parseFloat(e.target.value) || 0
+    audioBlocks[idx].start_sec = parseInt(e.target.value) || 0
     await saveAudioRange(idx)
     updateAudioBlockHeader(idx)
   })
   block.querySelector('.audio-end').addEventListener('change', async (e) => {
-    audioBlocks[idx].end_sec = e.target.value ? parseFloat(e.target.value) : null
+    audioBlocks[idx].end_sec = e.target.value ? parseInt(e.target.value) : null
     await saveAudioRange(idx)
     updateAudioBlockHeader(idx)
   })
@@ -316,12 +310,12 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
     <div class="sentence-sec-row">
       <div class="sec-input-wrap">
         <label>開始秒（任意）</label>
-        <input type="number" class="sent-start" min="0" step="0.01" value="${sent.start_sec ?? ''}" placeholder="未設定" style="width:90px" />
+        <input type="number" class="sent-start" min="0" value="${sent.start_sec ?? ''}" placeholder="未設定" style="width:72px" />
       </div>
       <button class="btn-mark btn-mark-start sent-mark-start" style="font-size:0.7rem;padding:6px 8px">▶ ここから</button>
       <div class="sec-input-wrap">
         <label>終了秒（任意）</label>
-        <input type="number" class="sent-end" min="0" step="0.01" value="${sent.end_sec ?? ''}" placeholder="未設定" style="width:90px" />
+        <input type="number" class="sent-end" min="0" value="${sent.end_sec ?? ''}" placeholder="未設定" style="width:72px" />
       </div>
       <button class="btn-mark btn-mark-end sent-mark-end" style="font-size:0.7rem;padding:6px 8px">■ ここまで</button>
       <button class="btn-play-range sent-play" style="font-size:0.7rem;padding:5px 10px">▶</button>
@@ -356,13 +350,13 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
   // 秒数マーク
   block.querySelector('.sent-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.round(ytPlayer.getCurrentTime() * 100) / 100
+    const sec = Math.floor(ytPlayer.getCurrentTime())
     block.querySelector('.sent-start').value = sec
     await db.from('lesson_sentences').update({ start_sec: sec }).eq('id', sent.id)
   })
   block.querySelector('.sent-mark-end').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.round(ytPlayer.getCurrentTime() * 100) / 100
+    const sec = Math.floor(ytPlayer.getCurrentTime())
     block.querySelector('.sent-end').value = sec
     await db.from('lesson_sentences').update({ end_sec: sec }).eq('id', sent.id)
   })
@@ -370,8 +364,8 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
   // 再生
   block.querySelector('.sent-play').addEventListener('click', () => {
     if (!ytPlayer) return
-    const start = parseFloat(block.querySelector('.sent-start').value) || audioBlocks[audioIdx].start_sec || 0
-    const end = parseFloat(block.querySelector('.sent-end').value) || audioBlocks[audioIdx].end_sec
+    const start = parseInt(block.querySelector('.sent-start').value) || audioBlocks[audioIdx].start_sec || 0
+    const end = parseInt(block.querySelector('.sent-end').value) || audioBlocks[audioIdx].end_sec
     ytPlayer.seekTo(start, true)
     ytPlayer.playVideo()
     if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
@@ -882,8 +876,8 @@ document.getElementById('btn-publish').addEventListener('click', async () => {
     category_id: document.getElementById('s3-category').value || null,
     tags: document.getElementById('s3-tags').value.split(/\s+/).filter(t => t),
     scope: document.getElementById('s3-scope').value,
-    overall_start: parseFloat(document.getElementById('s3-overall-start').value) || 0,
-    overall_end: overallEnd ? parseFloat(overallEnd) : null,
+    overall_start: parseInt(document.getElementById('s3-overall-start').value) || 0,
+    overall_end: overallEnd ? parseInt(overallEnd) : null,
     publish_start: publishStart ? new Date(publishStart).toISOString() : null,
     publish_end: publishEnd ? (() => { const d = new Date(publishEnd); d.setSeconds(59); return d.toISOString() })() : null,
     status: 'published',
