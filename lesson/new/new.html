@@ -103,7 +103,7 @@
     <!-- Step 2: Audio登録（YouTube） -->
     <div class="step-content" id="step-2" style="display:none">
 
-      <!-- YouTube固定エリア -->
+      <!-- YouTube固定ヘッダー -->
       <div class="youtube-header" id="youtube-header">
         <div class="youtube-player-wrap">
           <div id="youtube-player"></div>
@@ -115,13 +115,13 @@
         <div class="audio-current-label" id="audio-current-label"></div>
       </div>
 
-      <!-- スクロールエリア -->
-      <div class="step-2-scroll">
-        <div class="audio-blocks" id="audio-blocks"></div>
-        <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
-        <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
-      </div>
+      <!-- Audioブロック一覧 -->
+      <div class="audio-blocks" id="audio-blocks"></div>
 
+      <!-- Audio追加ボタン -->
+      <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
+
+      <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
     </div>
 
     <!-- Step 3: 公開設定 -->
@@ -133,11 +133,11 @@
           <div class="overall-range">
             <div class="field">
               <label>開始秒数</label>
-              <input type="number" id="s3-overall-start" min="0" step="0.01" value="0" />
+              <input type="number" id="s3-overall-start" min="0" value="0" />
             </div>
             <div class="field">
               <label>終了秒数</label>
-              <input type="number" id="s3-overall-end" min="0" step="0.01" placeholder="未設定" />
+              <input type="number" id="s3-overall-end" min="0" placeholder="未設定" />
             </div>
           </div>
         </div>
@@ -205,7 +205,7 @@
     <button class="btn-publish" id="btn-publish" style="display:none">レッスンを作成する</button>
   </footer>
 
-  <!-- 語彙登録ポップアップ -->
+  <!-- センテンス語彙登録ポップアップ -->
   <div class="popup-overlay" id="popup-vocab-overlay">
     <div class="popup">
       <button class="popup-close" id="popup-vocab-close">✕</button>
