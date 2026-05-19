@@ -352,7 +352,7 @@ input::placeholder, textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
   border-radius: 8px;
   color: var(--text);
-  padding: 8px 12px;
+  padding: 6px 12px;
   font-size: 0.85rem;
   font-family: 'Noto Serif JP', serif;
   outline: none;
@@ -367,7 +367,7 @@ input::placeholder, textarea::placeholder {
   color: var(--surface);
   border: none;
   border-radius: 8px;
-  padding: 8px 16px;
+  padding: 6px 16px;
   font-family: 'Noto Serif JP', serif;
   font-size: 0.82rem;
   font-weight: 700;
