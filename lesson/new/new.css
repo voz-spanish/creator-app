@@ -16,7 +16,8 @@ body {
   color: var(--text);
   font-family: 'Noto Serif JP', serif;
   font-weight: 300;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -314,48 +315,62 @@ input::placeholder, textarea::placeholder {
   position: sticky;
   top: 0;
   z-index: 3;
-  background: #000;
+  background: var(--bg);
+  border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  padding: 12px 16px;
 }
 
 .youtube-player-wrap {
+  position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  max-width: 560px;
+  margin: 0 auto;
   background: #000;
+  overflow: hidden;
+  aspect-ratio: 16/9;
+  box-shadow: 0 8px 40px rgba(160,132,32,0.12);
 }
 
 .youtube-player-wrap iframe {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: none;
 }
 
 .youtube-id-row {
+  max-width: 560px;
+  margin: 10px auto 0;
   display: flex;
-  gap: 0;
-  background: #111;
+  gap: 8px;
 }
 
 .youtube-id-row input {
   flex: 1;
-  background: #1a1a1a;
-  border: none;
-  border-right: none;
-  color: #eee;
-  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 12px;
   font-size: 0.85rem;
-  border-radius: 0;
+  font-family: 'Noto Serif JP', serif;
+  outline: none;
+  transition: border-color 0.2s;
 }
 
-.youtube-id-row input::placeholder { color: #666; }
-.youtube-id-row input:focus { outline: none; border-color: transparent; }
+.youtube-id-row input::placeholder { color: var(--muted); }
+.youtube-id-row input:focus { border-color: var(--accent); }
 
 .btn-load {
   background: var(--accent);
-  color: white;
+  color: var(--surface);
   border: none;
-  padding: 12px 20px;
+  border-radius: 8px;
+  padding: 8px 16px;
   font-family: 'Noto Serif JP', serif;
   font-size: 0.82rem;
+  font-weight: 700;
   letter-spacing: 0.1em;
   cursor: pointer;
   white-space: nowrap;
@@ -365,12 +380,13 @@ input::placeholder, textarea::placeholder {
 .btn-load:hover { opacity: 0.85; }
 
 .audio-current-label {
-  padding: 6px 14px;
-  background: #111;
+  max-width: 560px;
+  margin: 6px auto 0;
+  height: 18px;
   color: var(--accent);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   letter-spacing: 0.1em;
-  min-height: 30px;
+  font-family: 'Noto Serif JP', serif;
 }
 
 /* Audioブロック */
