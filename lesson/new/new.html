@@ -103,7 +103,7 @@
     <!-- Step 2: Audio登録（YouTube） -->
     <div class="step-content" id="step-2" style="display:none">
 
-      <!-- YouTube固定ヘッダー -->
+      <!-- YouTube固定エリア -->
       <div class="youtube-header" id="youtube-header">
         <div class="youtube-player-wrap">
           <div id="youtube-player"></div>
@@ -115,13 +115,13 @@
         <div class="audio-current-label" id="audio-current-label"></div>
       </div>
 
-      <!-- Audioブロック一覧 -->
-      <div class="audio-blocks" id="audio-blocks"></div>
+      <!-- スクロールエリア -->
+      <div class="step-2-scroll">
+        <div class="audio-blocks" id="audio-blocks"></div>
+        <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
+        <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
+      </div>
 
-      <!-- Audio追加ボタン -->
-      <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
-
-      <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
     </div>
 
     <!-- Step 3: 公開設定 -->
@@ -205,7 +205,7 @@
     <button class="btn-publish" id="btn-publish" style="display:none">レッスンを作成する</button>
   </footer>
 
-  <!-- センテンス語彙登録ポップアップ -->
+  <!-- 語彙登録ポップアップ -->
   <div class="popup-overlay" id="popup-vocab-overlay">
     <div class="popup">
       <button class="popup-close" id="popup-vocab-close">✕</button>
