@@ -57,6 +57,12 @@ function showStep(step) {
 
   if (step === 2) loadYouTubeAPI()
   if (step === 3) syncStep3()
+
+  // showStep() の中、step === 2 の処理の近くに追加
+  const toggleBtn = document.getElementById('btn-toggle-player')
+  if (toggleBtn) {
+  　toggleBtn.style.display = step === 2 ? 'flex' : 'none'
+　}
 }
 
 // ===== Step 1 =====
@@ -919,3 +925,11 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
     showStep(currentStep)
   }
 })()
+
+// ===== 動画折りたたみ =====
+document.getElementById('btn-toggle-player').addEventListener('click', () => {
+  const playerWrap = document.querySelector('.youtube-player-wrap')
+  const icon = document.getElementById('toggle-player-icon')
+  const isCollapsed = playerWrap.classList.toggle('collapsed')
+  icon.textContent = isCollapsed ? '▼' : '▲'
+})
