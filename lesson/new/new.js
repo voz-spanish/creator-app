@@ -58,17 +58,15 @@ function showStep(step) {
   if (step === 2) loadYouTubeAPI()
   if (step === 3) syncStep3()
 
-  // showStep() の中、step === 2 の処理の近くに追加
   const toggleBtn = document.getElementById('btn-toggle-player')
   if (toggleBtn) {
-  　toggleBtn.style.display = step === 2 ? 'flex' : 'none'
-　}
+    toggleBtn.style.display = step === 2 ? 'flex' : 'none'
+  }
 }
 
 // ===== Step 1 =====
 async function initStep1() {
   if (!lessonId) {
-    // 新規レッスンをDBに作成
     const session = await db.auth.getSession()
     const userId = session.data.session.user.id
     const { data, error } = await db.from('lessons').insert({
@@ -79,7 +77,6 @@ async function initStep1() {
     }).select().single()
     if (!error) lessonId = data.id
   } else {
-    // 既存データを読み込み
     const { data } = await db.from('lessons').select('*').eq('id', lessonId).single()
     if (data) {
       document.getElementById('s1-title').value = data.title || ''
@@ -98,7 +95,6 @@ async function saveStep1() {
   }).eq('id', lessonId)
 }
 
-// タイトル自動保存
 document.getElementById('s1-title').addEventListener('blur', async () => {
   if (!lessonId) return
   await saveStep1()
@@ -158,6 +154,7 @@ function updateAudioCurrentLabel() {
   label.textContent = `▶ Audio ${last.audio_number}  ${start} — ${end}`
 }
 
+// ===== 秒数フォーマット（0.01秒対応） =====
 function formatSec(sec) {
   const totalSec = parseFloat(sec) || 0
   const m = Math.floor(totalSec / 60)
@@ -185,12 +182,12 @@ function renderAudioBlock(idx) {
       <div class="sec-input-row">
         <div class="sec-input-wrap">
           <label>開始秒</label>
-          <input type="number" class="audio-start" min="0" value="${audio.start_sec || 0}" />
+          <input type="number" class="audio-start" min="0" step="0.01" value="${audio.start_sec || 0}" />
         </div>
         <button class="btn-mark btn-mark-start">▶ ここから</button>
         <div class="sec-input-wrap">
           <label>終了秒</label>
-          <input type="number" class="audio-end" min="0" value="${audio.end_sec ?? ''}" placeholder="未設定" />
+          <input type="number" class="audio-end" min="0" step="0.01" value="${audio.end_sec ?? ''}" placeholder="未設定" />
         </div>
         <button class="btn-mark btn-mark-end">■ ここまで</button>
         <button class="btn-play-range">▶ 再生</button>
@@ -209,14 +206,13 @@ function renderAudioBlock(idx) {
     </div>
   `
 
-  // 既存センテンスがあれば描画
   if (audio.sentences && audio.sentences.length > 0) {
     audio.sentences.forEach((sent, si) => {
       renderSentenceBlock(idx, si, sent)
     })
   }
 
-  // ▶ ここから
+  // ▶ ここから（0.01秒対応）
   block.querySelector('.btn-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
     const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
@@ -227,7 +223,7 @@ function renderAudioBlock(idx) {
     updateAudioCurrentLabel()
   })
 
-  // ■ ここまで
+  // ■ ここまで（0.01秒対応）
   block.querySelector('.btn-mark-end').addEventListener('click', async () => {
     if (!ytPlayer) return
     const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
@@ -250,14 +246,14 @@ function renderAudioBlock(idx) {
     }
   })
 
-  // 秒数手動入力
+  // 秒数手動入力（0.01秒対応）
   block.querySelector('.audio-start').addEventListener('change', async (e) => {
-    audioBlocks[idx].start_sec = parseInt(e.target.value) || 0
+    audioBlocks[idx].start_sec = parseFloat(e.target.value) || 0
     await saveAudioRange(idx)
     updateAudioBlockHeader(idx)
   })
   block.querySelector('.audio-end').addEventListener('change', async (e) => {
-    audioBlocks[idx].end_sec = e.target.value ? parseInt(e.target.value) : null
+    audioBlocks[idx].end_sec = e.target.value ? parseFloat(e.target.value) : null
     await saveAudioRange(idx)
     updateAudioBlockHeader(idx)
   })
@@ -293,7 +289,6 @@ function renderAudioBlock(idx) {
 }
 
 function parseSentences(raw) {
-  // / / で区切る
   const parts = raw.split('/')
     .map(s => s.trim())
     .filter(s => s.length > 0)
@@ -317,12 +312,12 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
     <div class="sentence-sec-row">
       <div class="sec-input-wrap">
         <label>開始秒（任意）</label>
-        <input type="number" class="sent-start" min="0" value="${sent.start_sec ?? ''}" placeholder="未設定" style="width:72px" />
+        <input type="number" class="sent-start" min="0" step="0.01" value="${sent.start_sec ?? ''}" placeholder="未設定" style="width:88px" />
       </div>
       <button class="btn-mark btn-mark-start sent-mark-start" style="font-size:0.7rem;padding:6px 8px">▶ ここから</button>
       <div class="sec-input-wrap">
         <label>終了秒（任意）</label>
-        <input type="number" class="sent-end" min="0" value="${sent.end_sec ?? ''}" placeholder="未設定" style="width:72px" />
+        <input type="number" class="sent-end" min="0" step="0.01" value="${sent.end_sec ?? ''}" placeholder="未設定" style="width:88px" />
       </div>
       <button class="btn-mark btn-mark-end sent-mark-end" style="font-size:0.7rem;padding:6px 8px">■ ここまで</button>
       <button class="btn-play-range sent-play" style="font-size:0.7rem;padding:5px 10px">▶</button>
@@ -354,7 +349,7 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
     block.remove()
   })
 
-  // 秒数マーク
+  // 秒数マーク（0.01秒対応）
   block.querySelector('.sent-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
     const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
@@ -368,11 +363,11 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
     await db.from('lesson_sentences').update({ end_sec: sec }).eq('id', sent.id)
   })
 
-  // 再生
+  // 再生（0.01秒対応）
   block.querySelector('.sent-play').addEventListener('click', () => {
     if (!ytPlayer) return
-    const start = parseInt(block.querySelector('.sent-start').value) || audioBlocks[audioIdx].start_sec || 0
-    const end = parseInt(block.querySelector('.sent-end').value) || audioBlocks[audioIdx].end_sec
+    const start = parseFloat(block.querySelector('.sent-start').value) || audioBlocks[audioIdx].start_sec || 0
+    const end = parseFloat(block.querySelector('.sent-end').value) || audioBlocks[audioIdx].end_sec
     ytPlayer.seekTo(start, true)
     ytPlayer.playVideo()
     if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
@@ -418,17 +413,14 @@ async function openVocabPopup(sent) {
   content.innerHTML = '<div style="color:var(--muted);padding:12px">読み込み中...</div>'
   openPopup('popup-vocab-overlay')
 
-  // 既存語彙取得
   const { data: existingVocab } = await db.from('lesson_sentence_vocab')
     .select('*').eq('sentence_id', sent.id).order('sort_order')
 
-  // lookup_forms取得
   const { data: lookupData } = await db.from('lookup_forms')
     .select('form, entry_id, dictionary_entries(id, spanish, japanese)')
 
   const lookupMap = buildLookupMap(lookupData || [])
 
-  // vocab_meanings取得
   const raw = sent.spanish_raw || ''
   const tokens = parseTokens(raw)
   const flatTokens = flattenTokens(tokens)
@@ -439,11 +431,9 @@ async function openVocabPopup(sent) {
   const meaningsMap = {}
   if (meanings) meanings.forEach(m => { meaningsMap[m.spanish] = m.meanings || [] })
 
-  // 既存語彙をマップ
   const existingMap = {}
   if (existingVocab) existingVocab.forEach(v => { existingMap[v.spanish] = v })
 
-  // 描画
   content.innerHTML = ''
   const vocabItems = []
 
@@ -514,7 +504,6 @@ async function openVocabPopup(sent) {
     })
   })
 
-  // 保存ボタン
   const saveBtn = document.createElement('button')
   saveBtn.className = 'btn-publish'
   saveBtn.style.marginTop = '16px'
@@ -523,7 +512,6 @@ async function openVocabPopup(sent) {
     const session = await db.auth.getSession()
     const userId = session.data.session.user.id
 
-    // 既存削除して再登録
     await db.from('lesson_sentence_vocab').delete().eq('sentence_id', sent.id)
 
     const insertData = vocabItems.map((v, i) => ({
@@ -539,7 +527,6 @@ async function openVocabPopup(sent) {
 
     if (insertData.length > 0) {
       await db.from('lesson_sentence_vocab').insert(insertData)
-      // vocab_meaningsにも保存
       for (const v of vocabItems) {
         if (v.selectedMeaning) await saveVocabMeaning(v.token.text, v.selectedMeaning)
       }
@@ -642,7 +629,6 @@ async function openDictPopup(spanish, status, entryId) {
     document.getElementById('dict-new-btn').addEventListener('click', () => {
       window.open(`../../dictionary/new/word.html?spanish=${encodeURIComponent(spanish)}`, '_blank')
     })
-    // 初期検索
     const { data } = await db.from('dictionary_entries')
       .select('*, formats(name)').or(`spanish.ilike.%${spanish}%,japanese.ilike.%${spanish}%`).limit(10)
     renderDictResults(data || [])
@@ -673,7 +659,7 @@ function renderDictResults(results) {
   })
 }
 
-// ===== トークン解析（質問と共通） =====
+// ===== トークン解析 =====
 function parseTokens(raw) {
   const tokens = []
   let i = 0
@@ -883,8 +869,8 @@ document.getElementById('btn-publish').addEventListener('click', async () => {
     category_id: document.getElementById('s3-category').value || null,
     tags: document.getElementById('s3-tags').value.split(/\s+/).filter(t => t),
     scope: document.getElementById('s3-scope').value,
-    overall_start: parseInt(document.getElementById('s3-overall-start').value) || 0,
-    overall_end: overallEnd ? parseInt(overallEnd) : null,
+    overall_start: parseFloat(document.getElementById('s3-overall-start').value) || 0,
+    overall_end: overallEnd ? parseFloat(overallEnd) : null,
     publish_start: publishStart ? new Date(publishStart).toISOString() : null,
     publish_end: publishEnd ? (() => { const d = new Date(publishEnd); d.setSeconds(59); return d.toISOString() })() : null,
     status: 'published',
