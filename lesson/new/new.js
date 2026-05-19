@@ -159,9 +159,10 @@ function updateAudioCurrentLabel() {
 }
 
 function formatSec(sec) {
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${m}:${String(s).padStart(2, '0')}`
+  const totalSec = parseFloat(sec) || 0
+  const m = Math.floor(totalSec / 60)
+  const s = (totalSec % 60).toFixed(2)
+  return `${m}:${String(s).padStart(5, '0')}`
 }
 
 function renderAudioBlock(idx) {
@@ -218,7 +219,7 @@ function renderAudioBlock(idx) {
   // ▶ ここから
   block.querySelector('.btn-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.floor(ytPlayer.getCurrentTime())
+    const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
     block.querySelector('.audio-start').value = sec
     audioBlocks[idx].start_sec = sec
     await saveAudioRange(idx)
@@ -229,7 +230,7 @@ function renderAudioBlock(idx) {
   // ■ ここまで
   block.querySelector('.btn-mark-end').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.floor(ytPlayer.getCurrentTime())
+    const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
     block.querySelector('.audio-end').value = sec
     audioBlocks[idx].end_sec = sec
     await saveAudioRange(idx)
@@ -356,13 +357,13 @@ function renderSentenceBlock(audioIdx, sentIdx, sent) {
   // 秒数マーク
   block.querySelector('.sent-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.floor(ytPlayer.getCurrentTime())
+    const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
     block.querySelector('.sent-start').value = sec
     await db.from('lesson_sentences').update({ start_sec: sec }).eq('id', sent.id)
   })
   block.querySelector('.sent-mark-end').addEventListener('click', async () => {
     if (!ytPlayer) return
-    const sec = Math.floor(ytPlayer.getCurrentTime())
+    const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
     block.querySelector('.sent-end').value = sec
     await db.from('lesson_sentences').update({ end_sec: sec }).eq('id', sent.id)
   })
