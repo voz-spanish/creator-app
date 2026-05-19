@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>レッスン作成</title>
+  <title>レッスン管理</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="new.css">
+  <link rel="stylesheet" href="lesson.css">
 </head>
 <body>
 
@@ -20,210 +20,60 @@
   <div class="drawer-overlay" id="drawer-overlay"></div>
   <nav class="drawer" id="drawer">
     <ul class="drawer-nav">
-      <li><a href="../../home/home.html">ホーム</a></li>
+      <li><a href="../home/home.html">ホーム</a></li>
       <li class="drawer-divider"></li>
-      <li><a href="../../lesson/lesson.html">レッスン</a></li>
-      <li><a href="../../flashcard/flashcard.html">フラッシュカード</a></li>
-      <li><a href="../../dictionary/dictionary.html">辞書</a></li>
-      <li><a href="../../question/question.html">質問</a></li>
-      <li><a href="../../announce/announce.html">アナウンス</a></li>
+      <li><a href="../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../question/question.html">質問</a></li>
+      <li><a href="../announce/announce.html">アナウンス</a></li>
     </ul>
     <button class="logout-btn" id="logout-btn">ログアウト</button>
   </nav>
 
-  <!-- ステップインジケーター -->
-  <div class="step-bar">
-    <div class="step-item" id="step-1-indicator">
-      <div class="step-num">1</div>
-      <div class="step-label">基本設定</div>
-    </div>
-    <div class="step-divider"></div>
-    <div class="step-item" id="step-2-indicator">
-      <div class="step-num">2</div>
-      <div class="step-label">Audio登録</div>
-    </div>
-    <div class="step-divider"></div>
-    <div class="step-item" id="step-3-indicator">
-      <div class="step-num">3</div>
-      <div class="step-label">公開設定</div>
-    </div>
-  </div>
-
   <main class="main">
 
-    <!-- Step 1: 基本設定 -->
-    <div class="step-content" id="step-1">
-      <div class="form-wrap">
-        <div class="page-header">
-          <a class="back-link" href="../lesson.html">← 一覧に戻る</a>
-          <h1 class="page-title">レッスンを作成する</h1>
+    <div class="filter-bar">
+      <div class="filter-top">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="キーワードで検索" />
+        <button class="filter-toggle-btn" id="filter-toggle-btn">▲</button>
+      </div>
+      <div class="filter-body" id="filter-body">
+        <div class="filter-row">
+          <label>カテゴリ</label>
+          <select id="filter-category">
+            <option value="">すべて</option>
+          </select>
         </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>レッスンタイトル</label>
-            <input type="text" id="s1-title" placeholder="タイトルを入力" />
-          </div>
+        <div class="filter-row">
+          <label>タグ</label>
+          <input type="text" id="filter-tag" placeholder="タグで絞り込み" />
         </div>
-
-        <div class="section-card">
-          <div class="section-card-title">レッスン形式</div>
-          <div class="type-options">
-            <label class="type-option">
-              <input type="radio" name="lesson-type" value="youtube" checked />
-              <span class="type-option-inner">
-                <span class="type-icon">▶</span>
-                <span class="type-name">YouTube</span>
-                <span class="type-desc">URL埋め込み再生</span>
-              </span>
-            </label>
-            <label class="type-option type-option--disabled">
-              <input type="radio" name="lesson-type" value="mp3" disabled />
-              <span class="type-option-inner">
-                <span class="type-icon">♪</span>
-                <span class="type-name">音声ファイル</span>
-                <span class="type-desc">近日対応予定</span>
-              </span>
-            </label>
-            <label class="type-option type-option--disabled">
-              <input type="radio" name="lesson-type" value="text" disabled />
-              <span class="type-option-inner">
-                <span class="type-icon">✍</span>
-                <span class="type-name">テキストのみ</span>
-                <span class="type-desc">近日対応予定</span>
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <p class="error-msg" id="s1-error"></p>
       </div>
     </div>
 
-    <!-- Step 2: Audio登録（YouTube） -->
-    <div class="step-content" id="step-2" style="display:none">
-
-      <!-- YouTube固定エリア -->
-      <div class="youtube-header" id="youtube-header">
-        <div class="youtube-player-wrap">
-          <div id="youtube-player"></div>
-        </div>
-        <div class="youtube-id-row">
-          <input type="text" id="yt-id-input" placeholder="YouTube 動画ID（例: FoBUU18WGRA）" />
-          <button class="btn-load" id="btn-load-yt">読み込む</button>
-        </div>
-        <div class="audio-current-label" id="audio-current-label"></div>
-      </div>
-
-      <!-- スクロールエリア -->
-      <div class="step-2-scroll">
-        <div class="audio-blocks" id="audio-blocks"></div>
-        <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
-        <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
-      </div>
-
+    <!-- 作成中 -->
+    <div class="list-section" id="section-draft">
+      <div class="list-section-label">作成中</div>
+      <ul class="lesson-list" id="list-draft"></ul>
+      <p class="empty-sub" id="empty-draft" style="display:none">作成中のレッスンはありません</p>
     </div>
 
-    <!-- Step 3: 公開設定 -->
-    <div class="step-content" id="step-3" style="display:none">
-      <div class="form-wrap">
-
-        <div class="section-card">
-          <div class="section-card-title">通しの再生範囲</div>
-          <div class="overall-range">
-            <div class="field">
-              <label>開始秒数</label>
-              <input type="number" id="s3-overall-start" min="0" step="0.01" value="0" />
-            </div>
-            <div class="field">
-              <label>終了秒数</label>
-              <input type="number" id="s3-overall-end" min="0" step="0.01" placeholder="未設定" />
-            </div>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>レッスンタイトル</label>
-            <input type="text" id="s3-title" placeholder="タイトルを入力" />
-          </div>
-          <div class="field">
-            <label>内容（任意）</label>
-            <textarea id="s3-description" placeholder="レッスンの説明など"></textarea>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>カテゴリ</label>
-            <select id="s3-category">
-              <option value="">選択してください</option>
-            </select>
-            <button class="btn-add-item" id="btn-add-cat">＋ カテゴリを追加</button>
-            <div class="new-item-wrap" id="new-cat-wrap" style="display:none">
-              <input type="text" id="new-cat-input" placeholder="新しいカテゴリ名" />
-              <button class="btn-save-item" id="btn-save-cat">追加</button>
-            </div>
-          </div>
-          <div class="field">
-            <label>タグ（スペース区切りで複数入力）</label>
-            <input type="text" id="s3-tags" placeholder="例: キッズ アニメ" />
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>公開開始日時</label>
-            <input type="datetime-local" id="s3-publish-start" />
-          </div>
-          <div class="field">
-            <label>公開終了日時（任意）</label>
-            <input type="datetime-local" id="s3-publish-end" />
-          </div>
-          <div class="field">
-            <label>公開範囲</label>
-            <select id="s3-scope">
-              <option value="plus">Plus</option>
-              <option value="free">Free</option>
-              <option value="max">Max</option>
-              <option value="draft">非公開</option>
-            </select>
-          </div>
-        </div>
-
-        <p class="error-msg" id="s3-error"></p>
-
-      </div>
+    <!-- 作成済 -->
+    <div class="list-section" id="section-published">
+      <div class="list-section-label">作成済</div>
+      <ul class="lesson-list" id="list-published"></ul>
+      <p class="empty-sub" id="empty-published" style="display:none">作成済のレッスンはありません</p>
     </div>
 
   </main>
 
-  <!-- フッター -->
-  <footer class="footer-fixed">
-    <button class="btn-back-step" id="btn-back-step" style="display:none">← 戻る</button>
-    <button class="btn-next-step" id="btn-next-step">次へ →</button>
-    <button class="btn-publish" id="btn-publish" style="display:none">レッスンを作成する</button>
+  <footer class="footer">
+    <button class="btn-add" id="btn-add">＋</button>
   </footer>
 
-  <!-- 語彙登録ポップアップ -->
-  <div class="popup-overlay" id="popup-vocab-overlay">
-    <div class="popup">
-      <button class="popup-close" id="popup-vocab-close">✕</button>
-      <h2 class="popup-title" id="popup-vocab-title">語彙登録</h2>
-      <div id="popup-vocab-content"></div>
-    </div>
-  </div>
-
-  <!-- 辞書確認ポップアップ -->
-  <div class="popup-overlay" id="popup-dict-overlay">
-    <div class="popup">
-      <button class="popup-close" id="popup-dict-close">✕</button>
-      <h2 class="popup-title" id="popup-dict-title">辞書</h2>
-      <div id="popup-dict-content"></div>
-    </div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="new.js"></script>
+  <script src="lesson.js"></script>
 </body>
 </html>
