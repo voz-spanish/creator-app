@@ -869,3 +869,36 @@ input::placeholder, textarea::placeholder {
   background: color-mix(in srgb, var(--earth) 15%, transparent);
   color: var(--earth);
 }
+
+/* ↓ ここから追加 */
+
+/* 動画折りたたみボタン */
+.btn-toggle-player {
+  position: fixed;
+  top: 110px;
+  right: 16px;
+  z-index: 20;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--earth) 40%, transparent);
+  color: var(--muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(38,31,27,0.15);
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-toggle-player:hover {
+  background: var(--accent);
+  color: var(--surface);
+  border-color: var(--accent);
+}
+
+.youtube-player-wrap.collapsed {
+  display: none;
+}
