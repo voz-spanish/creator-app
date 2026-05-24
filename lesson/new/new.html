@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>レッスン作成</title>
+  <title>素材登録</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="new.css">
@@ -40,12 +40,17 @@
     <div class="step-divider"></div>
     <div class="step-item" id="step-2-indicator">
       <div class="step-num">2</div>
-      <div class="step-label">Audio登録</div>
+      <div class="step-label">テキスト登録</div>
     </div>
     <div class="step-divider"></div>
     <div class="step-item" id="step-3-indicator">
       <div class="step-num">3</div>
-      <div class="step-label">公開設定</div>
+      <div class="step-label">音声紐付け</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-item" id="step-4-indicator">
+      <div class="step-num">4</div>
+      <div class="step-label">プレビュー</div>
     </div>
   </div>
 
@@ -56,18 +61,18 @@
       <div class="form-wrap">
         <div class="page-header">
           <a class="back-link" href="../lesson.html">← 一覧に戻る</a>
-          <h1 class="page-title">レッスンを作成する</h1>
+          <h1 class="page-title">素材を登録する</h1>
         </div>
 
         <div class="section-card">
           <div class="field">
-            <label>レッスンタイトル</label>
-            <input type="text" id="s1-title" placeholder="タイトルを入力" />
+            <label>タイトル</label>
+            <input type="text" id="s1-title" placeholder="素材タイトルを入力" />
           </div>
         </div>
 
         <div class="section-card">
-          <div class="section-card-title">レッスン形式</div>
+          <div class="section-card-title">形式</div>
           <div class="type-options">
             <label class="type-option">
               <input type="radio" name="lesson-type" value="youtube" checked />
@@ -85,14 +90,6 @@
                 <span class="type-desc">近日対応予定</span>
               </span>
             </label>
-            <label class="type-option type-option--disabled">
-              <input type="radio" name="lesson-type" value="text" disabled />
-              <span class="type-option-inner">
-                <span class="type-icon">✍</span>
-                <span class="type-name">テキストのみ</span>
-                <span class="type-desc">近日対応予定</span>
-              </span>
-            </label>
           </div>
         </div>
 
@@ -100,16 +97,26 @@
       </div>
     </div>
 
-    <!-- Step 2: Audio登録（YouTube） -->
+    <!-- Step 2: テキスト登録 -->
     <div class="step-content" id="step-2" style="display:none">
+      <div class="form-wrap" style="max-width:100%">
+        <div class="page-header" style="padding:0 4px 8px">
+          <h2 class="page-title" style="font-size:1.4rem">テキスト登録</h2>
+          <p class="input-hint-text">各Audioのスペイン語テキストを入力してください</p>
+        </div>
+        <div id="text-audio-blocks"></div>
+        <button class="btn-add-audio" id="btn-add-text-audio">＋ Audioを追加</button>
+        <p class="error-msg" id="s2-error"></p>
+      </div>
+    </div>
 
-      <!-- YouTube固定ヘッダー -->
+    <!-- Step 3: 音声紐付け -->
+    <div class="step-content" id="step-3" style="display:none">
       <div class="youtube-header" id="youtube-header">
-        <!-- ▼ 追加 -->
         <button class="btn-toggle-player" id="btn-toggle-player" aria-label="動画を折りたたむ">
           <span id="toggle-player-icon">▲</span>
         </button>
-        <div class="youtube-player-wrap">
+        <div class="youtube-player-wrap" id="youtube-player-wrap">
           <div id="youtube-player"></div>
         </div>
         <div class="youtube-id-row">
@@ -118,98 +125,31 @@
         </div>
         <div class="audio-current-label" id="audio-current-label"></div>
       </div>
-
-      <!-- Audioブロック一覧 -->
-      <div class="audio-blocks" id="audio-blocks"></div>
-
-      <!-- Audio追加ボタン -->
-      <button class="btn-add-audio" id="btn-add-audio">＋ Audioを追加</button>
-
-      <p class="error-msg" id="s2-error" style="padding:0 16px"></p>
+      <div class="audio-blocks" id="timing-audio-blocks"></div>
+      <p class="error-msg" id="s3-error" style="padding:0 16px"></p>
     </div>
 
-    <!-- Step 3: 公開設定 -->
-    <div class="step-content" id="step-3" style="display:none">
-      <div class="form-wrap">
-
-        <div class="section-card">
-          <div class="section-card-title">通しの再生範囲</div>
-          <div class="overall-range">
-            <div class="field">
-              <label>開始秒数</label>
-              <input type="number" id="s3-overall-start" min="0" value="0" />
-            </div>
-            <div class="field">
-              <label>終了秒数</label>
-              <input type="number" id="s3-overall-end" min="0" placeholder="未設定" />
-            </div>
-          </div>
+    <!-- Step 4: プレビュー -->
+    <div class="step-content" id="step-4" style="display:none">
+      <div class="form-wrap" style="max-width:100%">
+        <div class="page-header" style="padding:0 4px 8px">
+          <h2 class="page-title" style="font-size:1.4rem">プレビュー</h2>
+          <p class="input-hint-text">登録内容を確認してから保存してください</p>
         </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>レッスンタイトル</label>
-            <input type="text" id="s3-title" placeholder="タイトルを入力" />
-          </div>
-          <div class="field">
-            <label>内容（任意）</label>
-            <textarea id="s3-description" placeholder="レッスンの説明など"></textarea>
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>カテゴリ</label>
-            <select id="s3-category">
-              <option value="">選択してください</option>
-            </select>
-            <button class="btn-add-item" id="btn-add-cat">＋ カテゴリを追加</button>
-            <div class="new-item-wrap" id="new-cat-wrap" style="display:none">
-              <input type="text" id="new-cat-input" placeholder="新しいカテゴリ名" />
-              <button class="btn-save-item" id="btn-save-cat">追加</button>
-            </div>
-          </div>
-          <div class="field">
-            <label>タグ（スペース区切りで複数入力）</label>
-            <input type="text" id="s3-tags" placeholder="例: キッズ アニメ" />
-          </div>
-        </div>
-
-        <div class="section-card">
-          <div class="field">
-            <label>公開開始日時</label>
-            <input type="datetime-local" id="s3-publish-start" />
-          </div>
-          <div class="field">
-            <label>公開終了日時（任意）</label>
-            <input type="datetime-local" id="s3-publish-end" />
-          </div>
-          <div class="field">
-            <label>公開範囲</label>
-            <select id="s3-scope">
-              <option value="plus">Plus</option>
-              <option value="free">Free</option>
-              <option value="max">Max</option>
-              <option value="draft">非公開</option>
-            </select>
-          </div>
-        </div>
-
-        <p class="error-msg" id="s3-error"></p>
-
+        <div id="preview-blocks"></div>
+        <p class="error-msg" id="s4-error"></p>
       </div>
     </div>
 
   </main>
 
-  <!-- フッター -->
   <footer class="footer-fixed">
     <button class="btn-back-step" id="btn-back-step" style="display:none">← 戻る</button>
-    <button class="btn-next-step" id="btn-next-step">次へ →</button>
-    <button class="btn-publish" id="btn-publish" style="display:none">レッスンを作成する</button>
+    <button class="btn-next-step" id="btn-next-step">作成をはじめる →</button>
+    <button class="btn-publish" id="btn-publish" style="display:none">保存する</button>
   </footer>
 
-  <!-- センテンス語彙登録ポップアップ -->
+  <!-- 語彙登録ポップアップ -->
   <div class="popup-overlay" id="popup-vocab-overlay">
     <div class="popup">
       <button class="popup-close" id="popup-vocab-close">✕</button>
