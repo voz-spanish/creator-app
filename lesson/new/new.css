@@ -130,11 +130,11 @@ body {
 
 .logout-btn:hover { background: var(--accent); color: var(--surface); }
 
-/* ステップバー */
+/* ステップバー — 4ステップ対応 */
 .step-bar {
   display: flex;
   align-items: center;
-  padding: 12px 20px;
+  padding: 10px 12px;
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
   gap: 0;
@@ -144,29 +144,33 @@ body {
 .step-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
+  min-width: 0;
 }
 
 .step-num {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 1px solid var(--muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--muted);
   flex-shrink: 0;
   transition: 0.2s;
 }
 
 .step-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.1em;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
   color: var(--muted);
   transition: 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .step-item.active .step-num {
@@ -180,7 +184,7 @@ body {
 .step-item.done .step-label { color: var(--moss); }
 
 .step-divider {
-  width: 24px;
+  width: 16px;
   height: 1px;
   background: color-mix(in srgb, var(--earth) 30%, transparent);
   flex-shrink: 0;
@@ -194,7 +198,7 @@ body {
 
 .step-content { width: 100%; }
 
-/* Step 1 */
+/* フォーム */
 .form-wrap {
   max-width: 640px;
   margin: 0 auto;
@@ -310,7 +314,7 @@ input::placeholder, textarea::placeholder {
 .type-name { font-size: 0.9rem; flex: 1; }
 .type-desc { font-size: 0.72rem; color: var(--muted); }
 
-/* Step 2: YouTube */
+/* YouTube ヘッダー */
 .youtube-header {
   position: sticky;
   top: 0;
@@ -329,6 +333,11 @@ input::placeholder, textarea::placeholder {
   overflow: hidden;
   aspect-ratio: 16/9;
   box-shadow: 0 8px 40px rgba(160,132,32,0.12);
+  transition: all 0.25s;
+}
+
+.youtube-player-wrap.collapsed {
+  display: none;
 }
 
 .youtube-player-wrap iframe {
@@ -352,7 +361,7 @@ input::placeholder, textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
   border-radius: 8px;
   color: var(--text);
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-size: 0.85rem;
   font-family: 'Noto Serif JP', serif;
   outline: none;
@@ -367,7 +376,7 @@ input::placeholder, textarea::placeholder {
   color: var(--surface);
   border: none;
   border-radius: 8px;
-  padding: 6px 16px;
+  padding: 8px 16px;
   font-family: 'Noto Serif JP', serif;
   font-size: 0.82rem;
   font-weight: 700;
@@ -389,7 +398,34 @@ input::placeholder, textarea::placeholder {
   font-family: 'Noto Serif JP', serif;
 }
 
-/* Audioブロック */
+/* 動画折りたたみボタン */
+.btn-toggle-player {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 20;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--earth) 40%, transparent);
+  color: var(--muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(38,31,27,0.15);
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn-toggle-player:hover {
+  background: var(--accent);
+  color: var(--surface);
+  border-color: var(--accent);
+}
+
+/* Audio ブロック */
 .audio-blocks {
   padding: 12px 0;
 }
@@ -451,7 +487,7 @@ input::placeholder, textarea::placeholder {
 }
 
 .sec-input-wrap input[type="number"] {
-  width: 72px;
+  width: 88px;
   padding: 8px 10px;
   font-size: 0.85rem;
 }
@@ -567,6 +603,7 @@ input::placeholder, textarea::placeholder {
   border: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
   line-height: 2.2;
   font-size: 0.92rem;
+  cursor: pointer;
 }
 
 .preview-token {
@@ -607,53 +644,6 @@ input::placeholder, textarea::placeholder {
 }
 
 .btn-add-audio:hover { border-color: var(--earth); color: var(--earth); }
-
-/* Step 3 */
-.overall-range {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.btn-add-item {
-  background: none;
-  border: none;
-  color: var(--earth);
-  font-family: 'Noto Serif JP', serif;
-  font-size: 0.75rem;
-  letter-spacing: 0.15em;
-  cursor: pointer;
-  padding: 4px 0;
-  text-align: left;
-  border-bottom: 1px solid var(--earth);
-  width: fit-content;
-  transition: 0.2s;
-}
-
-.btn-add-item:hover { color: var(--accent); border-color: var(--accent); }
-
-.new-item-wrap {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.new-item-wrap input { flex: 1; }
-
-.btn-save-item {
-  background: var(--earth);
-  color: var(--surface);
-  border: none;
-  padding: 10px 14px;
-  font-family: 'Noto Serif JP', serif;
-  font-size: 0.8rem;
-  letter-spacing: 0.15em;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 0.2s;
-}
-
-.btn-save-item:hover { opacity: 0.85; }
 
 .btn-auto {
   background: none;
@@ -862,7 +852,6 @@ input::placeholder, textarea::placeholder {
 .btn-dict.unregistered { border-color: var(--accent); color: var(--accent); }
 .btn-dict:hover { opacity: 0.75; }
 
-/* タグバッジ */
 .tag-badge {
   font-size: 0.62rem;
   padding: 2px 7px;
@@ -870,35 +859,17 @@ input::placeholder, textarea::placeholder {
   color: var(--earth);
 }
 
-/* ↓ ここから追加 */
-
-/* 動画折りたたみボタン */
-.btn-toggle-player {
-  position: fixed;
-  top: 110px;
-  right: 16px;
-  z-index: 20;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--earth) 40%, transparent);
-  color: var(--muted);
-  font-size: 0.75rem;
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(38,31,27,0.15);
-  transition: background 0.2s, color 0.2s;
-}
-
-.btn-toggle-player:hover {
-  background: var(--accent);
+.btn-save-item {
+  background: var(--earth);
   color: var(--surface);
-  border-color: var(--accent);
+  border: none;
+  padding: 10px 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
 }
 
-.youtube-player-wrap.collapsed {
-  display: none;
-}
+.btn-save-item:hover { opacity: 0.85; }
