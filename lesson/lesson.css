@@ -88,10 +88,7 @@ body {
 
 .drawer.open { transform: translateX(0); }
 
-.drawer-nav {
-  list-style: none;
-  flex: 1;
-}
+.drawer-nav { list-style: none; flex: 1; }
 
 .drawer-nav li a {
   display: block;
@@ -133,6 +130,7 @@ body {
   padding-bottom: 80px;
 }
 
+/* 検索バー */
 .filter-bar {
   background: var(--surface);
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
@@ -162,52 +160,6 @@ body {
 
 .filter-top input::placeholder { color: var(--muted); }
 
-.filter-toggle-btn {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 0.75rem;
-  cursor: pointer;
-  padding: 4px;
-  flex-shrink: 0;
-}
-
-.filter-body {
-  display: none;
-  border-top: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
-}
-
-.filter-body.open { display: block; }
-
-.filter-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
-}
-
-.filter-row label {
-  font-size: 0.72rem;
-  letter-spacing: 0.15em;
-  color: var(--muted);
-  width: 80px;
-  flex-shrink: 0;
-}
-
-.filter-row select,
-.filter-row input[type="text"] {
-  flex: 1;
-  background: var(--bg);
-  border: 1px solid color-mix(in srgb, var(--earth) 30%, transparent);
-  border-radius: 0;
-  padding: 8px 12px;
-  font-family: 'Noto Serif JP', serif;
-  font-size: 0.85rem;
-  color: var(--text);
-  outline: none;
-}
-
 /* セクション */
 .list-section { margin-bottom: 0; }
 
@@ -226,7 +178,7 @@ body {
   flex-direction: column;
 }
 
-/* 作成中カード */
+/* カード */
 .lesson-item {
   padding: 14px 16px;
   border-bottom: 1px solid color-mix(in srgb, var(--earth) 20%, transparent);
@@ -236,13 +188,8 @@ body {
   gap: 6px;
 }
 
-.lesson-item.draft {
-  border-left: 3px solid var(--muted);
-}
-
-.lesson-item.published {
-  border-left: 3px solid var(--moss);
-}
+.lesson-item.draft    { border-left: 3px solid var(--muted); }
+.lesson-item.published { border-left: 3px solid var(--moss); }
 
 .lesson-title {
   font-size: 0.95rem;
@@ -259,34 +206,6 @@ body {
   font-size: 0.75rem;
   color: var(--muted);
   letter-spacing: 0.05em;
-}
-
-.lesson-badges {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: 2px;
-}
-
-.status-badge {
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  padding: 2px 7px;
-  border: 1px solid currentColor;
-}
-
-.status-badge.scheduled { color: var(--earth); }
-.status-badge.active { color: var(--moss); }
-.status-badge.ended { color: var(--muted); }
-.status-badge.draft { color: var(--muted); }
-
-.scope-badge {
-  font-size: 0.62rem;
-  letter-spacing: 0.12em;
-  padding: 2px 7px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--accent);
 }
 
 .lesson-actions {
@@ -310,8 +229,12 @@ body {
 }
 
 .btn-action:hover { color: var(--accent); border-color: var(--accent); }
+
 .btn-action.btn-primary { color: var(--earth); border-color: var(--earth); }
 .btn-action.btn-primary:hover { color: var(--accent); border-color: var(--accent); }
+
+.btn-action.btn-delete { color: var(--muted); border-color: var(--muted); }
+.btn-action.btn-delete:hover { color: var(--accent); border-color: var(--accent); }
 
 .empty-sub {
   text-align: center;
@@ -320,6 +243,7 @@ body {
   padding: 20px 16px;
 }
 
+/* フッター */
 .footer {
   position: fixed;
   bottom: 0;
