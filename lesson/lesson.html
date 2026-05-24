@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>レッスン管理</title>
+  <title>素材一覧</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="lesson.css">
@@ -22,7 +22,8 @@
     <ul class="drawer-nav">
       <li><a href="../home/home.html">ホーム</a></li>
       <li class="drawer-divider"></li>
-      <li><a href="../lesson/lesson.html">レッスン</a></li>
+      <li><a href="../lesson/lesson.html">レッスン素材</a></li>
+      <li><a href="../plan/plan.html">レッスンプラン</a></li>
       <li><a href="../flashcard/flashcard.html">フラッシュカード</a></li>
       <li><a href="../dictionary/dictionary.html">辞書</a></li>
       <li><a href="../question/question.html">質問</a></li>
@@ -36,20 +37,7 @@
     <div class="filter-bar">
       <div class="filter-top">
         <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="キーワードで検索" />
-        <button class="filter-toggle-btn" id="filter-toggle-btn">▲</button>
-      </div>
-      <div class="filter-body" id="filter-body">
-        <div class="filter-row">
-          <label>カテゴリ</label>
-          <select id="filter-category">
-            <option value="">すべて</option>
-          </select>
-        </div>
-        <div class="filter-row">
-          <label>タグ</label>
-          <input type="text" id="filter-tag" placeholder="タグで絞り込み" />
-        </div>
+        <input type="text" id="search-input" placeholder="タイトルで検索" />
       </div>
     </div>
 
@@ -57,14 +45,14 @@
     <div class="list-section" id="section-draft">
       <div class="list-section-label">作成中</div>
       <ul class="lesson-list" id="list-draft"></ul>
-      <p class="empty-sub" id="empty-draft" style="display:none">作成中のレッスンはありません</p>
+      <p class="empty-sub" id="empty-draft" style="display:none">作成中の素材はありません</p>
     </div>
 
     <!-- 作成済 -->
     <div class="list-section" id="section-published">
       <div class="list-section-label">作成済</div>
       <ul class="lesson-list" id="list-published"></ul>
-      <p class="empty-sub" id="empty-published" style="display:none">作成済のレッスンはありません</p>
+      <p class="empty-sub" id="empty-published" style="display:none">作成済の素材はありません</p>
     </div>
 
   </main>
