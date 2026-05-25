@@ -16,6 +16,7 @@ let ytPlayer = null
 let ytReady = false
 let audioItems = []                     // audio_material_items の配列
 let currentDictVocabInfo = null
+let maxReachedStep = 1   // これまでに到達した最大ステップ番号
 
 // ===== YouTube IFrame API =====
 window.onYouTubeIframeAPIReady = () => {
@@ -44,11 +45,13 @@ function loadYouTubeAPI() {
 // ===== ステップ管理 =====
 function showStep(step) {
   currentStep = step
+  if (step > maxReachedStep) maxReachedStep = step
   ;[1, 2, 3, 4].forEach(s => {
     document.getElementById(`step-${s}`).style.display = s === step ? 'block' : 'none'
     const ind = document.getElementById(`step-${s}-indicator`)
     ind.classList.toggle('active', s === step)
-    ind.classList.toggle('done', s < step)
+    // maxReachedStep まで done にする（現在地より前だけでなく、過去に到達済みも含む）
+    ind.classList.toggle('done', s !== step && s <= maxReachedStep)
   })
   document.getElementById('btn-back-step').style.display = step > 1 ? 'block' : 'none'
   document.getElementById('btn-next-step').style.display = step < 4 ? 'block' : 'none'
@@ -160,10 +163,10 @@ function renderTextAudioBlock(idx) {
     </div>
     <div class="audio-block-body">
       <div class="section-card-title" style="font-size:0.68rem;letter-spacing:0.2em;color:var(--muted)">
-        センテンス入力（/ で区切ると複数に分割）
+        センテンス入力
       </div>
       <div class="input-hint-text">
-        単語: そのまま　( ) : 表現（細分化なし）　[ ] : フレーズ（細分化あり）　/ / : センテンス区切り
+        / / : センテンス区切り
       </div>
       <textarea class="audio-text-input" placeholder="例: /¿Qué hiciste hoy?/ /¿Qué comiste?/" rows="3"></textarea>
       <button class="btn-auto btn-parse-sentences">✨ センテンスを解析</button>
@@ -249,13 +252,33 @@ function renderTextSentenceBlock(audioIdx, sentIdx, sent) {
   block.innerHTML = `
     <div class="sentence-label">センテンス ${sentIdx + 1}</div>
     <button class="btn-sentence-delete">✕</button>
+
+    <!-- スペイン語表示 -->
     <div class="field">
       <div class="display-preview">${sent.spanish_display || ''}</div>
     </div>
+
+    <!-- チャンク直訳セクション -->
+    <div class="chunk-input-section">
+      <label style="font-size:0.68rem;letter-spacing:0.25em;color:var(--muted)">
+        チャンク直訳
+      </label>
+      <div class="input-hint-text">
+        単語: そのまま　( ) : 表現（細分化なし）　[ ] : フレーズ（細分化あり）　/ / : チャンク区切り
+      </div>
+      <textarea class="chunk-spanish-input" rows="2" placeholder="例: /últimamente/ /[tratamos de mezclar]/ /los jueves/"></textarea>
+      <div class="chunk-pairs-wrap" id="chunk-pairs-${sent.id}"></div>
+      <div class="chunk-literal-preview" id="chunk-literal-${sent.id}"></div>
+      <button class="btn-chunk-save" id="btn-chunk-save-${sent.id}" style="display:none">直訳を保存</button>
+    </div>
+
+    <!-- 日本語意味 -->
     <div class="field">
-      <label>日本語意味（任意）</label>
+      <label>日本語意味（自然な翻訳）</label>
       <textarea class="sent-japanese" rows="2" placeholder="日本語の意味">${sent.japanese || ''}</textarea>
     </div>
+
+    <!-- 語彙登録 -->
     <button class="btn-vocab">語彙を登録する</button>
     <div class="preview-wrap sent-preview" id="preview-${sent.id}">
       <span style="color:var(--muted);font-size:0.8rem">語彙登録後にプレビューが表示されます</span>
@@ -263,21 +286,187 @@ function renderTextSentenceBlock(audioIdx, sentIdx, sent) {
     <div class="preview-meaning-bubble" id="bubble-${sent.id}" style="display:none"></div>
   `
 
+  // 削除
   block.querySelector('.btn-sentence-delete').addEventListener('click', async () => {
     if (!confirm('このセンテンスを削除しますか？')) return
     await db.from('audio_sentence_vocab').delete().eq('sentence_id', sent.id)
+    await db.from('audio_sentence_chunks').delete().eq('sentence_id', sent.id)
     await db.from('audio_sentences').delete().eq('id', sent.id)
     audioItems[audioIdx].sentences = audioItems[audioIdx].sentences.filter(s => s.id !== sent.id)
     block.remove()
   })
 
+  // 日本語意味 保存
   block.querySelector('.sent-japanese').addEventListener('blur', async (e) => {
     await db.from('audio_sentences').update({ japanese: e.target.value }).eq('id', sent.id)
   })
 
-  block.querySelector('.btn-vocab').addEventListener('click', () => openVocabPopup(sent, audioIdx))
+  // 語彙登録 — チャンク入力欄に記法があればそちらを優先して渡す
+  block.querySelector('.btn-vocab').addEventListener('click', () => {
+    const chunkRaw = block.querySelector('.chunk-spanish-input').value.trim()
+    // チャンク入力欄の / を除去して1つの記法文字列として渡す
+    // 例: /últimamente/ /[tratamos de mezclar]/ → últimamente [tratamos de mezclar]
+    const vocabRaw = chunkRaw
+      ? chunkRaw.split('/').map(s => s.trim()).filter(s => s.length > 0).join(' ')
+      : (sent.spanish_raw || sent.spanish_display || '')
+    openVocabPopup({ ...sent, spanish_raw: vocabRaw }, audioIdx)
+  })
+
+  // チャンク: 既存データ読み込み & GOボタン
+  loadChunksForSentence(sent, block)
 
   wrap.appendChild(block)
+}
+
+// チャンク直訳の読み込みと描画
+async function loadChunksForSentence(sent, block) {
+  const { data: existingChunks } = await db.from('audio_sentence_chunks')
+    .select('*').eq('sentence_id', sent.id).order('sort_order')
+
+  // 既存チャンクがあれば入力欄とペアを復元
+  if (existingChunks && existingChunks.length > 0) {
+    const chunkText = existingChunks.map(c => c.spanish_raw ? `/${c.spanish_raw}/` : `/${c.spanish_chunk}/`).join(' ')
+    block.querySelector('.chunk-spanish-input').value = chunkText
+    renderChunkPairs(sent, block, existingChunks)
+  }
+
+  // リアルタイム更新（debounce 400ms）
+  let debounceTimer = null
+  block.querySelector('.chunk-spanish-input').addEventListener('input', () => {
+    clearTimeout(debounceTimer)
+    debounceTimer = setTimeout(async () => {
+      const raw = block.querySelector('.chunk-spanish-input').value
+      const rawParts = raw.split('/').map(s => s.trim()).filter(s => s.length > 0)
+
+      if (rawParts.length === 0) {
+        // 入力が空になったらペア行もクリア
+        renderChunkPairs(sent, block, [])
+        return
+      }
+
+      const displayParts = rawParts.map(p => stripSymbols(p))
+
+      // parseTokens でトップレベルトークンを取得し、[]() のまとまりを反映した表示ラベルを生成
+      // 例: "[tratamos de mezclar]" → type:phrase, label:"tratamos de mezclar"（1まとまり）
+      //     "(nosotras)" → type:expression, label:"nosotras"（1まとまり）
+      //     "últimamente" → type:word, label:"últimamente"
+      const chunkLabels = rawParts.map(p => {
+        const tokens = parseTokens(p)
+        if (tokens.length === 1) {
+          // 1トークンなら type に応じてラベルスタイルを付ける
+          return { display: tokens[0].text, type: tokens[0].type, raw: p }
+        }
+        // 複数トークンのチャンクはそのまま stripSymbols で表示
+        return { display: stripSymbols(p), type: 'word', raw: p }
+      })
+
+      // 現在DOM上にある日本語入力値を回収（キーは spanish_chunk）
+      const currentJpMap = {}
+      block.querySelectorAll(`#chunk-pairs-${sent.id} .chunk-pair-row`).forEach(row => {
+        const key = row.dataset.chunkKey
+        const val = row.querySelector('input[type="text"]').value
+        if (key) currentJpMap[key] = val
+      })
+
+      // 過去登録キャッシュ（新規チャンクにだけ使う）
+      const newKeys = chunkLabels.map(c => c.display).filter(d => !(d in currentJpMap))
+      let cacheMap = {}
+      if (newKeys.length > 0) {
+        const { data: cachedChunks } = await db.from('audio_sentence_chunks')
+          .select('spanish_chunk, japanese_chunk')
+          .in('spanish_chunk', newKeys)
+        if (cachedChunks) {
+          cachedChunks.forEach(c => {
+            if (!cacheMap[c.spanish_chunk] && c.japanese_chunk) {
+              cacheMap[c.spanish_chunk] = c.japanese_chunk
+            }
+          })
+        }
+      }
+
+      const draftChunks = chunkLabels.map((cl, i) => ({
+        spanish_chunk: cl.display,
+        spanish_raw: cl.raw,
+        chunk_type: cl.type,
+        // 既にDOMに入力済みの日本語を最優先で引き継ぐ
+        japanese_chunk: (cl.display in currentJpMap) ? currentJpMap[cl.display] : (cacheMap[cl.display] || ''),
+        sort_order: i
+      }))
+
+      renderChunkPairs(sent, block, draftChunks)
+    }, 400)
+  })
+}
+
+// チャンクペア行の描画＋直訳プレビュー自動更新
+function renderChunkPairs(sent, block, chunks) {
+  const pairsWrap = block.querySelector(`#chunk-pairs-${sent.id}`)
+  const literalPreview = block.querySelector(`#chunk-literal-${sent.id}`)
+  const saveBtn = block.querySelector(`#btn-chunk-save-${sent.id}`)
+
+  pairsWrap.innerHTML = ''
+
+  // 直訳プレビュー更新関数
+  function updateLiteralPreview() {
+    const pairs = [...pairsWrap.querySelectorAll('.chunk-pair-row')]
+    const parts = pairs.map(row => {
+      const jp = row.querySelector('input[type="text"]').value.trim()
+      return jp || '…'
+    })
+    literalPreview.textContent = parts.join('／')
+  }
+
+  // DB保存（現在のDOM状態を保存）
+  async function saveChunksToDB() {
+    const rows = [...pairsWrap.querySelectorAll('.chunk-pair-row')]
+    const newChunks = rows.map((row, ci) => ({
+      sentence_id: sent.id,
+      material_id: materialId,
+      spanish_chunk: chunks[ci].spanish_chunk,
+      spanish_raw: chunks[ci].spanish_raw || chunks[ci].spanish_chunk,
+      chunk_type: chunks[ci].chunk_type || 'word',
+      japanese_chunk: row.querySelector('input').value.trim(),
+      sort_order: ci
+    }))
+    await db.from('audio_sentence_chunks').delete().eq('sentence_id', sent.id)
+    if (newChunks.length > 0) {
+      await db.from('audio_sentence_chunks').insert(newChunks)
+    }
+  }
+
+  chunks.forEach((chunk, ci) => {
+    const row = document.createElement('div')
+    row.className = 'chunk-pair-row'
+    row.dataset.chunkKey = chunk.spanish_chunk
+
+    const typeLabel = chunk.chunk_type === 'phrase' ? 'フレーズ'
+      : chunk.chunk_type === 'expression' ? '表現' : ''
+    const typeBadge = typeLabel
+      ? `<span style="font-size:0.58rem;padding:1px 5px;letter-spacing:0.06em;
+          background:color-mix(in srgb,var(--earth) 15%,transparent);
+          color:var(--earth);margin-right:4px">${typeLabel}</span>`
+      : ''
+
+    row.innerHTML = `
+      <div class="chunk-spanish">${typeBadge}${chunk.spanish_chunk}</div>
+      <input type="text" placeholder="日本語チャンク" value="${chunk.japanese_chunk || ''}" />
+    `
+    const input = row.querySelector('input')
+    input.addEventListener('input', updateLiteralPreview)
+    // 日本語入力からフォーカスが外れたら自動保存
+    input.addEventListener('blur', saveChunksToDB)
+    pairsWrap.appendChild(row)
+  })
+
+  updateLiteralPreview()
+  saveBtn.style.display = chunks.length > 0 ? 'block' : 'none'
+
+  // 保存ボタンも残す（明示的に保存したいとき用）
+  saveBtn.onclick = async () => {
+    await saveChunksToDB()
+    saveBtn.textContent = '保存しました ✓'
+    setTimeout(() => { saveBtn.textContent = '直訳を保存' }, 1800)
+  }
 }
 
 // ===== Step 3: 音声紐付け =====
@@ -487,9 +676,23 @@ function updateAudioCurrentLabel() {
 }
 
 // ===== Step 4: プレビュー =====
-function renderPreview() {
+async function renderPreview() {
   const container = document.getElementById('preview-blocks')
   container.innerHTML = ''
+
+  // 全センテンスのチャンクをまとめて取得
+  const allSentIds = audioItems.flatMap(item => (item.sentences || []).map(s => s.id))
+  let chunksMap = {}
+  if (allSentIds.length > 0) {
+    const { data: allChunks } = await db.from('audio_sentence_chunks')
+      .select('*').in('sentence_id', allSentIds).order('sort_order')
+    if (allChunks) {
+      allChunks.forEach(c => {
+        if (!chunksMap[c.sentence_id]) chunksMap[c.sentence_id] = []
+        chunksMap[c.sentence_id].push(c)
+      })
+    }
+  }
 
   audioItems.forEach((item, idx) => {
     const block = document.createElement('div')
@@ -500,7 +703,6 @@ function renderPreview() {
     const startStr = formatSec(item.start_sec || 0)
     const endStr = item.end_sec != null ? formatSec(item.end_sec) : '未設定'
 
-    // センテンスがない（Audio全体で1まとまり）
     if (!hasSentences) {
       block.innerHTML = `
         <div class="audio-block-header">
@@ -512,66 +714,147 @@ function renderPreview() {
         </div>
       `
     } else {
-      const sentHTML = item.sentences.map((sent, si) => {
-        const sStart = sent.start_sec != null ? formatSec(sent.start_sec) : startStr
-        const sEnd = sent.end_sec != null ? formatSec(sent.end_sec) : endStr
-        return `
-          <div class="sentence-block" id="preview-sent-block-${sent.id}" style="gap:8px">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <button class="btn-play-range preview-play"
-                data-start="${sent.start_sec ?? item.start_sec ?? 0}"
-                data-end="${sent.end_sec ?? item.end_sec ?? ''}"
-                style="font-size:0.7rem;padding:5px 10px;flex-shrink:0">
-                ▶ ${sStart}–${sEnd}
-              </button>
-              <div class="preview-wrap" id="preview-${sent.id}"
-                style="flex:1;min-width:0;padding:8px 12px;cursor:pointer">
-                ${sent.spanish_display || ''}
-              </div>
-            </div>
-            <div class="preview-meaning-bubble" id="bubble-${sent.id}" style="display:none"></div>
-          </div>
-        `
-      }).join('')
-
       block.innerHTML = `
         <div class="audio-block-header">
           <span class="audio-block-title">Audio ${item.audio_number}</span>
           <span class="audio-block-range">${startStr} — ${endStr}</span>
         </div>
         <div class="audio-block-body">
-          <div class="sentences-wrap">${sentHTML}</div>
+          <div class="sentences-wrap" id="preview-sentences-${idx}"></div>
         </div>
       `
-    }
 
-    // 再生ボタンイベント
-    block.querySelectorAll('.preview-play').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (!ytPlayer) return
-        const start = parseFloat(btn.dataset.start) || 0
-        const end = parseFloat(btn.dataset.end) || null
-        ytPlayer.seekTo(start, true)
-        ytPlayer.playVideo()
-        if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
-      })
-    })
+      const sentWrap = block.querySelector(`#preview-sentences-${idx}`)
 
-    // テキストクリックで日本語表示
-    item.sentences && item.sentences.forEach(sent => {
-      const previewEl = block.querySelector(`#preview-${sent.id}`)
-      const bubble = block.querySelector(`#bubble-${sent.id}`)
-      if (!previewEl || !bubble) return
-      previewEl.addEventListener('click', (e) => {
-        e.stopPropagation()
-        if (bubble.style.display === 'none') {
-          bubble.textContent = sent.japanese || '（意味未登録）'
-          bubble.style.display = 'inline-block'
-        } else {
-          bubble.style.display = 'none'
+      item.sentences.forEach((sent, si) => {
+        const sStart = sent.start_sec != null ? formatSec(sent.start_sec) : startStr
+        const sEnd = sent.end_sec != null ? formatSec(sent.end_sec) : endStr
+        const chunks = chunksMap[sent.id] || []
+        const hasChunks = chunks.length > 0
+        const hasJapanese = !!(sent.japanese && sent.japanese.trim())
+
+        const sentBlock = document.createElement('div')
+        sentBlock.className = 'sentence-block'
+        sentBlock.style.gap = '8px'
+        sentBlock.id = `preview-sent-block-${sent.id}`
+
+        // スペイン語行
+        sentBlock.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn-play-range preview-play"
+              data-start="${sent.start_sec ?? item.start_sec ?? 0}"
+              data-end="${sent.end_sec ?? item.end_sec ?? ''}"
+              style="font-size:0.7rem;padding:5px 10px;flex-shrink:0">
+              ▶ ${sStart}–${sEnd}
+            </button>
+            <div class="preview-wrap" id="preview-${sent.id}"
+              style="flex:1;min-width:0;padding:8px 12px;cursor:pointer">
+              ${sent.spanish_display || ''}
+            </div>
+          </div>
+          <div class="preview-meaning-bubble" id="bubble-${sent.id}" style="display:none"></div>
+
+          <!-- 展開ボタン行 -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+            ${hasJapanese ? `
+              <button class="preview-expand-btn" id="btn-expand-jp-${sent.id}">
+                ＋ 日本語意味
+              </button>
+            ` : ''}
+            ${hasChunks ? `
+              <button class="preview-expand-btn" id="btn-expand-chunk-${sent.id}">
+                ＋ チャンク直訳
+              </button>
+            ` : ''}
+          </div>
+
+          <!-- 日本語意味パネル -->
+          ${hasJapanese ? `
+            <div class="preview-expand-panel" id="panel-jp-${sent.id}">
+              ${sent.japanese}
+            </div>
+          ` : ''}
+
+          <!-- チャンク直訳パネル -->
+          ${hasChunks ? `
+            <div class="preview-expand-panel" id="panel-chunk-${sent.id}">
+              ${chunks.map((c, ci) => `
+                <span class="chunk-literal-item"
+                  data-spanish="${c.spanish_chunk}"
+                  data-idx="${ci}"
+                  data-sent="${sent.id}">
+                  ${c.japanese_chunk || c.spanish_chunk}
+                </span>
+                ${ci < chunks.length - 1 ? '<span style="color:var(--muted);margin:0 1px">／</span>' : ''}
+              `).join('')}
+            </div>
+          ` : ''}
+        `
+
+        sentWrap.appendChild(sentBlock)
+
+        // 再生ボタン
+        sentBlock.querySelector('.preview-play').addEventListener('click', () => {
+          if (!ytPlayer) return
+          const start = parseFloat(sentBlock.querySelector('.preview-play').dataset.start) || 0
+          const end = parseFloat(sentBlock.querySelector('.preview-play').dataset.end) || null
+          ytPlayer.seekTo(start, true)
+          ytPlayer.playVideo()
+          if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
+        })
+
+        // スペイン語テキストクリック（語彙バブル）
+        const previewEl = sentBlock.querySelector(`#preview-${sent.id}`)
+        const bubble = sentBlock.querySelector(`#bubble-${sent.id}`)
+        if (previewEl && bubble) {
+          previewEl.addEventListener('click', (e) => {
+            e.stopPropagation()
+            bubble.style.display = bubble.style.display === 'none' ? 'inline-block' : 'none'
+            if (bubble.style.display !== 'none') {
+              bubble.textContent = sent.japanese || '（意味未登録）'
+            }
+          })
+        }
+
+        // 日本語意味 展開ボタン
+        if (hasJapanese) {
+          const btnJp = sentBlock.querySelector(`#btn-expand-jp-${sent.id}`)
+          const panelJp = sentBlock.querySelector(`#panel-jp-${sent.id}`)
+          btnJp.addEventListener('click', () => {
+            const isOpen = panelJp.classList.toggle('open')
+            btnJp.classList.toggle('open', isOpen)
+            btnJp.textContent = isOpen ? '− 日本語意味' : '＋ 日本語意味'
+          })
+        }
+
+        // チャンク直訳 展開ボタン＋タップでスペイン語ハイライト
+        if (hasChunks) {
+          const btnChunk = sentBlock.querySelector(`#btn-expand-chunk-${sent.id}`)
+          const panelChunk = sentBlock.querySelector(`#panel-chunk-${sent.id}`)
+          btnChunk.addEventListener('click', () => {
+            const isOpen = panelChunk.classList.toggle('open')
+            btnChunk.classList.toggle('open', isOpen)
+            btnChunk.textContent = isOpen ? '− チャンク直訳' : '＋ チャンク直訳'
+          })
+
+          // チャンクアイテムタップ → スペイン語表示エリアにハイライト
+          panelChunk.querySelectorAll('.chunk-literal-item').forEach(item => {
+            item.addEventListener('click', () => {
+              // 同パネル内の他ハイライトを外す
+              panelChunk.querySelectorAll('.chunk-literal-item').forEach(el => el.classList.remove('highlight'))
+              item.classList.add('highlight')
+
+              // スペイン語表示エリアにチャンクテキストをバブル表示
+              const spChunk = item.dataset.spanish
+              if (bubble) {
+                bubble.textContent = spChunk
+                bubble.style.display = 'inline-block'
+              }
+            })
+          })
         }
       })
-    })
+    }
 
     container.appendChild(block)
   })
@@ -1031,6 +1314,41 @@ async function saveVocabMeaning(spanish, meaning) {
   }
 }
 
+// ===== ステップインジケータークリック =====
+;[1, 2, 3, 4].forEach(s => {
+  document.getElementById(`step-${s}-indicator`).addEventListener('click', async () => {
+    // maxReachedStep 以下のステップのみ遷移可能（現在地も含む）
+    if (s > maxReachedStep) return
+    if (s === currentStep) return  // 現在地は何もしない
+
+    // 後退（または同一 maxReachedStep 内の任意移動）
+    if (s < currentStep) {
+      // Step2以降に後退するときは audioItems が必要
+      if (s === 2 && audioItems.length === 0) { await initStep2() }
+      if (s === 3 && document.getElementById('timing-audio-blocks').children.length === 0) { await initStep3() }
+      showStep(s)
+      return
+    }
+
+    // 前進の場合は各ステップの初期化を経由
+    if (currentStep === 1 && s > 1) {
+      const ok = await createMaterial()
+      if (!ok) return
+      if (s === 2) { await initStep2(); showStep(2); return }
+      await initStep2()
+      if (s === 3) { await initStep3(); showStep(3); return }
+      await initStep3()
+      if (s === 4) { showStep(4) }
+    } else if (currentStep === 2 && s > 2) {
+      if (s === 3) { await initStep3(); showStep(3); return }
+      await initStep3()
+      if (s === 4) { showStep(4) }
+    } else if (currentStep === 3 && s === 4) {
+      showStep(4)
+    }
+  })
+})
+
 // ===== ナビゲーション =====
 document.getElementById('btn-next-step').addEventListener('click', async () => {
   if (currentStep === 1) {
@@ -1105,5 +1423,34 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
 ;(async () => {
   await checkAuth()
   await initStep1()
+
+  if (materialId) {
+    // DBデータからどこまで進んでいるか判定して maxReachedStep を設定
+    const { data: mat } = await db.from('audio_materials').select('status, youtube_id').eq('id', materialId).single()
+    if (mat) {
+      if (mat.status === 'saved') {
+        // 保存済み → 全ステップ解放
+        maxReachedStep = 4
+      } else {
+        // draft → Audioアイテムとセンテンスの有無でステップ判定
+        const { data: items } = await db.from('audio_material_items')
+          .select('id').eq('material_id', materialId).limit(1)
+        if (items && items.length > 0) {
+          maxReachedStep = 2  // Step2まで到達済み
+          // Step3：YouTube IDがあるか、またはセンテンスに秒数が入っていれば到達済みとみなす
+          if (mat.youtube_id) {
+            maxReachedStep = 3
+          }
+          // Step4：全Audioにstart_secが設定されていればプレビュー到達済みとみなす
+          const { data: allItems } = await db.from('audio_material_items')
+            .select('start_sec').eq('material_id', materialId)
+          if (allItems && allItems.length > 0 && allItems.every(i => i.start_sec != null)) {
+            maxReachedStep = 4
+          }
+        }
+      }
+    }
+  }
+
   showStep(1)
 })()
