@@ -182,7 +182,9 @@ body {
 .step-item.active .step-label { color: var(--accent); }
 .step-item.done .step-num { background: var(--moss); border-color: var(--moss); color: var(--surface); }
 .step-item.done .step-label { color: var(--moss); }
-
+.step-item.done { cursor: pointer; }
+.step-item.done:hover .step-num { background: var(--slate); border-color: var(--slate); }
+.step-item.done:hover .step-label { color: var(--slate); }
 .step-divider {
   width: 16px;
   height: 1px;
@@ -873,3 +875,136 @@ input::placeholder, textarea::placeholder {
 }
 
 .btn-save-item:hover { opacity: 0.85; }
+
+/* ===== チャンク直訳 ===== */
+.chunk-input-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chunk-spanish-edit-wrap {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.chunk-spanish-edit-wrap textarea {
+  flex: 1;
+  min-height: 52px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.btn-chunk-go {
+  background: var(--slate);
+  color: var(--surface);
+  border: none;
+  padding: 8px 14px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+  align-self: flex-end;
+}
+
+.btn-chunk-go:hover { opacity: 0.8; }
+
+.chunk-pairs-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chunk-pair-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+}
+
+.chunk-pair-row .chunk-spanish {
+  font-size: 0.82rem;
+  color: var(--text);
+  padding: 6px 0;
+  line-height: 1.5;
+}
+
+.chunk-pair-row input[type="text"] {
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  background: var(--surface);
+}
+
+.chunk-literal-preview {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.8;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--earth) 5%, var(--surface));
+  border: 1px dashed color-mix(in srgb, var(--earth) 25%, transparent);
+  min-height: 32px;
+}
+
+.btn-chunk-save {
+  background: var(--moss);
+  color: var(--surface);
+  border: none;
+  padding: 10px 16px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: opacity 0.2s;
+}
+
+.btn-chunk-save:hover { opacity: 0.85; }
+
+/* プレビューの展開パネル */
+.preview-expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid color-mix(in srgb, var(--earth) 25%, transparent);
+  color: var(--muted);
+  padding: 5px 12px;
+  font-family: 'Noto Serif JP', serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.preview-expand-btn:hover { border-color: var(--earth); color: var(--earth); }
+.preview-expand-btn.open { border-color: var(--accent); color: var(--accent); }
+
+.preview-expand-panel {
+  display: none;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--earth) 4%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--earth) 15%, transparent);
+  border-top: none;
+  font-size: 0.82rem;
+  line-height: 1.9;
+}
+
+.preview-expand-panel.open { display: block; }
+
+.chunk-literal-item {
+  display: inline;
+  cursor: pointer;
+  padding: 1px 3px;
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.chunk-literal-item:hover { background: color-mix(in srgb, var(--earth) 15%, transparent); }
+.chunk-literal-item.highlight { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
