@@ -370,7 +370,14 @@ function renderTextSentenceBlock(audioIdx, sentIdx, sent) {
 
   // 日本語意味 保存
   block.querySelector('.sent-japanese').addEventListener('blur', async (e) => {
-    await db.from('audio_sentences').update({ japanese: e.target.value }).eq('id', sent.id)
+    const val = e.target.value
+    await db.from('audio_sentences').update({ japanese: val }).eq('id', sent.id)
+    // audioItems内のsentenceも同期
+    for (const item of audioItems) {
+      if (!item.sentences) continue
+      const s = item.sentences.find(s => s.id === sent.id)
+      if (s) { s.japanese = val; break }
+    }
   })
 
   // センテンスブロック本体 折りたたみ
@@ -1117,13 +1124,13 @@ function renderTimingAudioBlock(idx) {
         <div class="sentence-sec-row">
           <div class="sec-input-wrap">
             <label>開始秒</label>
-            <input type="number" class="sent-start" min="0" step="0.01"
+            <input type="number" class="sent-start" min="0" step="0.1"
               value="${sent.start_sec ?? ''}" placeholder="未設定" style="width:88px" />
           </div>
           <button class="btn-mark btn-mark-start sent-mark-start" style="font-size:0.7rem;padding:6px 8px">▶ ここから</button>
           <div class="sec-input-wrap">
             <label>終了秒</label>
-            <input type="number" class="sent-end" min="0" step="0.01"
+            <input type="number" class="sent-end" min="0" step="0.1"
               value="${sent.end_sec ?? ''}" placeholder="未設定" style="width:88px" />
           </div>
           <button class="btn-mark btn-mark-end sent-mark-end" style="font-size:0.7rem;padding:6px 8px">■ ここまで</button>
@@ -1136,73 +1143,17 @@ function renderTimingAudioBlock(idx) {
   block.innerHTML = `
     <div class="audio-block-header audio-block-toggle" data-target="timing-audio-body-${idx}" style="cursor:pointer">
       <span class="audio-block-title">Audio ${item.audio_number}</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="audio-block-range">${startStr} — ${endStr}</span>
-        <span class="audio-toggle-icon" style="font-size:0.65rem;color:var(--muted)">▼</span>
-      </div>
+      <span class="audio-toggle-icon" style="font-size:0.65rem;color:var(--muted)">▼</span>
     </div>
     <div class="audio-block-body" id="timing-audio-body-${idx}">
-      <div class="sec-input-row">
-        <div class="sec-input-wrap">
-          <label>開始秒（Audio全体）</label>
-          <input type="number" class="audio-start" min="0" step="0.01" value="${item.start_sec || 0}" />
-        </div>
-        <button class="btn-mark btn-mark-start">▶ ここから</button>
-        <div class="sec-input-wrap">
-          <label>終了秒（Audio全体）</label>
-          <input type="number" class="audio-end" min="0" step="0.01" value="${item.end_sec ?? ''}" placeholder="未設定" />
-        </div>
-        <button class="btn-mark btn-mark-end">■ ここまで</button>
-        <button class="btn-play-range">▶ 再生</button>
-      </div>
       ${hasSentences ? `
-        <div class="section-card-title" style="font-size:0.68rem;letter-spacing:0.2em;color:var(--muted);margin-top:8px">
+        <div class="section-card-title" style="font-size:0.68rem;letter-spacing:0.2em;color:var(--muted)">
           センテンスごとの秒数
         </div>
         <div class="sentences-wrap" id="timing-sentences-${idx}">${sentencesHTML}</div>
-      ` : ''}
+      ` : '<div style="color:var(--muted);font-size:0.82rem">センテンス未登録</div>'}
     </div>
   `
-
-  block.querySelector('.btn-mark-start').addEventListener('click', async () => {
-    if (!ytPlayer) return
-    const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
-    block.querySelector('.audio-start').value = sec
-    audioItems[idx].start_sec = sec
-    await saveItemRange(idx)
-    updateTimingBlockHeader(idx)
-    updateAudioCurrentLabel()
-  })
-
-  block.querySelector('.btn-mark-end').addEventListener('click', async () => {
-    if (!ytPlayer) return
-    const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
-    block.querySelector('.audio-end').value = sec
-    audioItems[idx].end_sec = sec
-    await saveItemRange(idx)
-    updateTimingBlockHeader(idx)
-    updateAudioCurrentLabel()
-  })
-
-  block.querySelector('.btn-play-range').addEventListener('click', () => {
-    if (!ytPlayer) return
-    const start = audioItems[idx].start_sec || 0
-    const end = audioItems[idx].end_sec
-    ytPlayer.seekTo(start, true)
-    ytPlayer.playVideo()
-    if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
-  })
-
-  block.querySelector('.audio-start').addEventListener('change', async (e) => {
-    audioItems[idx].start_sec = parseFloat(e.target.value) || 0
-    await saveItemRange(idx)
-    updateTimingBlockHeader(idx)
-  })
-  block.querySelector('.audio-end').addEventListener('change', async (e) => {
-    audioItems[idx].end_sec = e.target.value ? parseFloat(e.target.value) : null
-    await saveItemRange(idx)
-    updateTimingBlockHeader(idx)
-  })
 
   if (hasSentences) {
     item.sentences.forEach((sent, si) => {
@@ -1211,7 +1162,7 @@ function renderTimingAudioBlock(idx) {
 
       sentBlock.querySelector('.sent-mark-start').addEventListener('click', async () => {
         if (!ytPlayer) return
-        const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
+        const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(1))
         sentBlock.querySelector('.sent-start').value = sec
         audioItems[idx].sentences[si].start_sec = sec
         await db.from('audio_sentences').update({ start_sec: sec }).eq('id', sent.id)
@@ -1219,7 +1170,7 @@ function renderTimingAudioBlock(idx) {
 
       sentBlock.querySelector('.sent-mark-end').addEventListener('click', async () => {
         if (!ytPlayer) return
-        const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
+        const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(1))
         sentBlock.querySelector('.sent-end').value = sec
         audioItems[idx].sentences[si].end_sec = sec
         await db.from('audio_sentences').update({ end_sec: sec }).eq('id', sent.id)
@@ -1227,10 +1178,9 @@ function renderTimingAudioBlock(idx) {
 
       sentBlock.querySelector('.sent-play').addEventListener('click', () => {
         if (!ytPlayer) return
-        const start = parseFloat(sentBlock.querySelector('.sent-start').value)
-          || audioItems[idx].start_sec || 0
-        const end = parseFloat(sentBlock.querySelector('.sent-end').value)
-          || audioItems[idx].end_sec
+        const start = parseFloat(sentBlock.querySelector('.sent-start').value) || 0
+        const end = parseFloat(sentBlock.querySelector('.sent-end').value) || null
+        if (!start && start !== 0) return
         ytPlayer.seekTo(start, true)
         ytPlayer.playVideo()
         if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
@@ -1281,6 +1231,116 @@ function updateAudioCurrentLabel() {
   label.textContent = `▶ Audio ${last.audio_number}  ${formatSec(last.start_sec || 0)} — ${last.end_sec != null ? formatSec(last.end_sec) : '未設定'}`
 }
 
+// ===== Step4 センテンス順番再生 =====
+let sequentialTimer = null  // 再生中のタイマー（停止に使う）
+
+function playSequential(sents, index) {
+  // 前のタイマーをクリア
+  if (sequentialTimer) { clearTimeout(sequentialTimer); sequentialTimer = null }
+  if (!ytPlayer || index >= sents.length) return
+
+  const sent = sents[index]
+  const start = sent.start_sec
+  const end = sent.end_sec
+  const duration = (end - start) * 1000
+
+  ytPlayer.seekTo(start, true)
+  ytPlayer.playVideo()
+
+  sequentialTimer = setTimeout(() => {
+    if (index + 1 < sents.length) {
+      // 次のセンテンスへ
+      playSequential(sents, index + 1)
+    } else {
+      // 全て終了
+      ytPlayer.pauseVideo()
+      sequentialTimer = null
+    }
+  }, duration)
+}
+
+// ===== Step4 スペイン語インタラクティブ表示（Step2と同仕様） =====
+async function renderPreviewSpanish(sent, chunks, sentVocabMap, sentBlock, bubble) {
+  const spanishEl = sentBlock.querySelector(`#preview-${sent.id}`)
+  if (!spanishEl) return
+
+  // 語彙データは引数から受け取る（renderPreviewで一括取得済み）
+  const vocabMap = sentVocabMap
+
+  spanishEl.innerHTML = ''
+
+  if (!chunks || chunks.length === 0) {
+    spanishEl.textContent = sent.spanish_display || ''
+    return
+  }
+
+  let activeChunkEl = null
+
+  function collapseChunk(chunkSpan) {
+    chunkSpan.innerHTML = ''
+    chunkSpan.textContent = chunkSpan.dataset.originalText
+    chunkSpan.classList.remove('active')
+  }
+
+  function resetAll() {
+    if (activeChunkEl) collapseChunk(activeChunkEl)
+    spanishEl.querySelectorAll('.s2-chunk-token').forEach(el => el.classList.remove('active'))
+    bubble.style.display = 'none'
+    activeChunkEl = null
+  }
+
+  function showBubble(text) {
+    if (!text) { bubble.style.display = 'none'; return }
+    bubble.textContent = text
+    bubble.style.display = 'inline-block'
+  }
+
+  chunks.forEach((chunk, ci) => {
+    const chunkSpan = document.createElement('span')
+    chunkSpan.className = 's2-chunk-token preview-token'
+    chunkSpan.dataset.originalText = chunk.spanish_chunk
+    if (ci > 0) spanishEl.appendChild(document.createTextNode(' '))
+
+    const raw = chunk.spanish_raw || chunk.spanish_chunk
+    const tokens = parseTokens(raw)
+    const leafTokens = getLeafTokens(tokens)
+    const hasSubTokens = leafTokens.length > 1 ||
+      (leafTokens.length === 1 && leafTokens[0].type !== 'word')
+
+    chunkSpan.textContent = chunk.spanish_chunk
+
+    chunkSpan.addEventListener('click', (e) => {
+      e.stopPropagation()
+
+      if (activeChunkEl && activeChunkEl !== chunkSpan) {
+        collapseChunk(activeChunkEl)
+        spanishEl.querySelectorAll('.s2-chunk-token').forEach(el => el.classList.remove('active'))
+        bubble.style.display = 'none'
+        activeChunkEl = null
+      }
+
+      if (activeChunkEl === chunkSpan) {
+        resetAll()
+        return
+      }
+
+      activeChunkEl = chunkSpan
+      chunkSpan.classList.add('active')
+      showBubble(chunk.japanese_chunk || chunk.spanish_chunk)
+
+      if (hasSubTokens) {
+        expandChunkToSubs(chunkSpan, leafTokens, vocabMap, bubble, showBubble)
+      }
+    })
+
+    spanishEl.appendChild(chunkSpan)
+  })
+
+  spanishEl.addEventListener('click', (e) => {
+    if (e.target === spanishEl) resetAll()
+  })
+}
+
 // ===== Step 4: プレビュー =====
 async function renderPreview() {
   const container = document.getElementById('preview-blocks')
@@ -1288,13 +1348,29 @@ async function renderPreview() {
 
   const allSentIds = audioItems.flatMap(item => (item.sentences || []).map(s => s.id))
   let chunksMap = {}
+  let vocabMap = {}
+  let sentenceJapaneseMap = {}  // sentence_id → japanese（DBから最新取得）
   if (allSentIds.length > 0) {
-    const { data: allChunks } = await db.from('audio_sentence_chunks')
-      .select('*').in('sentence_id', allSentIds).order('sort_order')
-    if (allChunks) {
-      allChunks.forEach(c => {
+    const [chunksRes, vocabRes, sentRes] = await Promise.all([
+      db.from('audio_sentence_chunks').select('*').in('sentence_id', allSentIds).order('sort_order'),
+      db.from('audio_sentence_vocab').select('*').in('sentence_id', allSentIds),
+      db.from('audio_sentences').select('id, japanese').in('id', allSentIds)
+    ])
+    if (chunksRes.data) {
+      chunksRes.data.forEach(c => {
         if (!chunksMap[c.sentence_id]) chunksMap[c.sentence_id] = []
         chunksMap[c.sentence_id].push(c)
+      })
+    }
+    if (vocabRes.data) {
+      vocabRes.data.forEach(v => {
+        if (!vocabMap[v.sentence_id]) vocabMap[v.sentence_id] = {}
+        vocabMap[v.sentence_id][v.spanish] = v.selected_meaning || ''
+      })
+    }
+    if (sentRes.data) {
+      sentRes.data.forEach(s => {
+        sentenceJapaneseMap[s.id] = s.japanese || ''
       })
     }
   }
@@ -1320,9 +1396,14 @@ async function renderPreview() {
       `
     } else {
       block.innerHTML = `
-        <div class="audio-block-header">
-          <span class="audio-block-title">Audio ${item.audio_number}</span>
-          <span class="audio-block-range">${startStr} — ${endStr}</span>
+        <div class="audio-block-header" style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn-play-range preview-audio-play"
+              style="font-size:0.72rem;padding:5px 12px;flex-shrink:0">
+              ▶ Audio ${item.audio_number}
+            </button>
+            <span class="audio-block-range">${startStr} — ${endStr}</span>
+          </div>
         </div>
         <div class="audio-block-body">
           <div class="sentences-wrap" id="preview-sentences-${idx}"></div>
@@ -1331,12 +1412,28 @@ async function renderPreview() {
 
       const sentWrap = block.querySelector(`#preview-sentences-${idx}`)
 
+      // Audio全体順番再生
+      const audioPlayBtn = block.querySelector('.preview-audio-play')
+      if (audioPlayBtn) {
+        audioPlayBtn.addEventListener('click', () => {
+          if (!ytPlayer) return
+          // 秒数設定済みのセンテンスだけ順番に再生
+          const playableSents = item.sentences.filter(s =>
+            s.start_sec != null && s.end_sec != null
+          ).sort((a, b) => a.start_sec - b.start_sec)
+          if (playableSents.length === 0) return
+          playSequential(playableSents, 0)
+        })
+      }
+
       item.sentences.forEach((sent, si) => {
         const sStart = sent.start_sec != null ? formatSec(sent.start_sec) : startStr
         const sEnd = sent.end_sec != null ? formatSec(sent.end_sec) : endStr
         const chunks = chunksMap[sent.id] || []
         const hasChunks = chunks.length > 0
-        const hasJapanese = !!(sent.japanese && sent.japanese.trim())
+        // DBから取得した最新のjapaneseで判定（audioItemsの古いキャッシュを使わない）
+        const latestJapanese = sentenceJapaneseMap[sent.id] ?? sent.japanese ?? ''
+        const hasJapanese = !!(latestJapanese && latestJapanese.trim())
 
         const sentBlock = document.createElement('div')
         sentBlock.className = 'sentence-block'
@@ -1352,8 +1449,7 @@ async function renderPreview() {
               ▶ ${sStart}–${sEnd}
             </button>
             <div class="preview-wrap" id="preview-${sent.id}"
-              style="flex:1;min-width:0;padding:8px 12px;cursor:pointer">
-              ${sent.spanish_display || ''}
+              style="flex:1;min-width:0;padding:8px 12px;cursor:pointer;line-height:2">
             </div>
           </div>
           <div class="preview-meaning-bubble" id="bubble-${sent.id}" style="display:none"></div>
@@ -1373,7 +1469,7 @@ async function renderPreview() {
 
           ${hasJapanese ? `
             <div class="preview-expand-panel" id="panel-jp-${sent.id}">
-              ${sent.japanese}
+              ${latestJapanese}
             </div>
           ` : ''}
 
@@ -1403,17 +1499,9 @@ async function renderPreview() {
           if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
         })
 
-        const previewEl = sentBlock.querySelector(`#preview-${sent.id}`)
         const bubble = sentBlock.querySelector(`#bubble-${sent.id}`)
-        if (previewEl && bubble) {
-          previewEl.addEventListener('click', (e) => {
-            e.stopPropagation()
-            bubble.style.display = bubble.style.display === 'none' ? 'inline-block' : 'none'
-            if (bubble.style.display !== 'none') {
-              bubble.textContent = sent.japanese || '（意味未登録）'
-            }
-          })
-        }
+        // Step2と同じインタラクティブ表示
+        renderPreviewSpanish(sent, chunks, vocabMap[sent.id] || {}, sentBlock, bubble)
 
         if (hasJapanese) {
           const btnJp = sentBlock.querySelector(`#btn-expand-jp-${sent.id}`)
@@ -1467,8 +1555,8 @@ function toggleAudioBody(block, bodyId) {
 function formatSec(sec) {
   const totalSec = parseFloat(sec) || 0
   const m = Math.floor(totalSec / 60)
-  const s = (totalSec % 60).toFixed(2)
-  return `${m}:${String(s).padStart(5, '0')}`
+  const s = (totalSec % 60).toFixed(1)
+  return `${m}:${String(s).padStart(4, '0')}`
 }
 
 // ===== 語彙ポップアップ（後方互換用） =====
