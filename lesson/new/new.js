@@ -50,14 +50,12 @@ function showStep(step) {
     document.getElementById(`step-${s}`).style.display = s === step ? 'block' : 'none'
     const ind = document.getElementById(`step-${s}-indicator`)
     ind.classList.toggle('active', s === step)
-    // maxReachedStep まで done にする（現在地より前だけでなく、過去に到達済みも含む）
     ind.classList.toggle('done', s !== step && s <= maxReachedStep)
   })
   document.getElementById('btn-back-step').style.display = step > 1 ? 'block' : 'none'
   document.getElementById('btn-next-step').style.display = step < 4 ? 'block' : 'none'
   document.getElementById('btn-publish').style.display = step === 4 ? 'block' : 'none'
 
-  // Step1のボタンラベルを変える
   const nextBtn = document.getElementById('btn-next-step')
   if (step === 1) nextBtn.textContent = '作成をはじめる →'
   else if (step === 2) nextBtn.textContent = '音声紐付けへ →'
@@ -82,7 +80,6 @@ async function initStep1() {
   }
 }
 
-// Step1「作成をはじめる」でDB登録
 async function createMaterial() {
   const title = document.getElementById('s1-title').value.trim()
   const type = document.querySelector('input[name="lesson-type"]:checked')?.value || 'youtube'
@@ -117,7 +114,6 @@ async function initStep2() {
   container.innerHTML = ''
   audioItems = []
 
-  // 既存データ読み込み
   const { data: items } = await db.from('audio_material_items')
     .select('*').eq('material_id', materialId).order('sort_order')
 
@@ -129,7 +125,6 @@ async function initStep2() {
       renderTextAudioBlock(audioItems.length - 1)
     }
   } else {
-    // 初回は1つ自動追加
     await addTextAudioBlock()
   }
 }
@@ -158,30 +153,44 @@ function renderTextAudioBlock(idx) {
   block.id = `text-audio-block-${idx}`
 
   block.innerHTML = `
-    <div class="audio-block-header">
+    <div class="audio-block-header audio-block-toggle" data-target="text-audio-body-${idx}" style="cursor:pointer">
       <span class="audio-block-title">Audio ${item.audio_number}</span>
+      <span class="audio-toggle-icon" style="font-size:0.65rem;color:var(--muted)">▼</span>
     </div>
-    <div class="audio-block-body">
+    <div class="audio-block-body" id="text-audio-body-${idx}">
       <div class="section-card-title" style="font-size:0.68rem;letter-spacing:0.2em;color:var(--muted)">
         センテンス入力
       </div>
       <div class="input-hint-text">
-        / / : センテンス区切り
+        | : センテンス区切り
       </div>
-      <textarea class="audio-text-input" placeholder="例: /¿Qué hiciste hoy?/ /¿Qué comiste?/" rows="3"></textarea>
+      <textarea class="audio-text-input" placeholder="例: ¿Qué hiciste hoy?|¿Qué comiste?" rows="3"></textarea>
       <button class="btn-auto btn-parse-sentences">✨ センテンスを解析</button>
       <div class="sentences-wrap" id="text-sentences-${idx}"></div>
     </div>
   `
 
-  // センテンス解析
+  // Audioブロック 折りたたみ
+  block.querySelector('.audio-block-toggle').addEventListener('click', (e) => {
+    if (e.target.closest('button, textarea')) return
+    toggleAudioBody(block, `text-audio-body-${idx}`)
+  })
+
+  // センテンス入力テキストをblur時に自動保存
+  block.querySelector('.audio-text-input').addEventListener('blur', async (e) => {
+    const val = e.target.value.trim()
+    if (!val || !audioItems[idx]?.id) return
+    await db.from('audio_material_items')
+      .update({ raw_text: val, updated_at: new Date().toISOString() })
+      .eq('id', audioItems[idx].id)
+  })
+
   block.querySelector('.btn-parse-sentences').addEventListener('click', async () => {
     const raw = block.querySelector('.audio-text-input').value.trim()
     if (!raw) return
     const sentences = parseSentences(raw)
     const sentWrap = document.getElementById(`text-sentences-${idx}`)
 
-    // ① DOM消去より前に日本語・秒数を回収
     const prevDataMap = {}
     if (audioItems[idx].sentences && audioItems[idx].sentences.length > 0) {
       audioItems[idx].sentences.forEach(s => {
@@ -193,7 +202,6 @@ function renderTextAudioBlock(idx) {
           end_sec: s.end_sec ?? null
         }
       })
-      // ② 回収完了後にDOMをクリア
       sentWrap.innerHTML = ''
       for (const s of audioItems[idx].sentences) {
         await db.from('audio_sentence_vocab').delete().eq('sentence_id', s.id)
@@ -207,7 +215,6 @@ function renderTextAudioBlock(idx) {
     for (let si = 0; si < sentences.length; si++) {
       const raw_sent = sentences[si]
       const display = stripSymbols(raw_sent)
-      // 同じdisplayの既存データがあれば引き継ぐ
       const prev = prevDataMap[display] || {}
       const { data, error } = await db.from('audio_sentences').insert({
         item_id: item.id,
@@ -229,17 +236,17 @@ function renderTextAudioBlock(idx) {
 
   container.appendChild(block)
 
-  // 既存センテンス描画（appendChildの後）
   if (item.sentences && item.sentences.length > 0) {
-    // textareaにsentences_rawを / 区切りで復元
     const restoredText = item.sentences
-      .map(s => s.spanish_raw || s.spanish_display || '')
+      .map(s => s.spanish_display || s.spanish_raw || '')
       .filter(s => s)
-      .map(s => `/${s}/`)
-      .join(' ')
+      .join('|')
     block.querySelector('.audio-text-input').value = restoredText
 
     item.sentences.forEach((sent, si) => renderTextSentenceBlock(idx, si, sent))
+  } else if (item.raw_text) {
+    // センテンス未解析でもraw_textがあれば入力欄を復元
+    block.querySelector('.audio-text-input').value = item.raw_text
   }
 }
 
@@ -250,44 +257,109 @@ function renderTextSentenceBlock(audioIdx, sentIdx, sent) {
   block.id = `text-sentence-${sent.id}`
 
   block.innerHTML = `
-    <div class="sentence-label">センテンス ${sentIdx + 1}</div>
-    <button class="btn-sentence-delete">✕</button>
+    <div class="sent-block-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <div class="sentence-label" style="flex-shrink:0">センテンス ${sentIdx + 1}</div>
+        <div class="sent-header-preview" style="font-size:0.8rem;color:var(--muted);
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0">
+          ${sent.spanish_display || ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span class="audio-toggle-icon" style="font-size:0.6rem;color:var(--muted)">▼</span>
+        <button class="btn-sentence-delete">✕</button>
+      </div>
+    </div>
+
+    <!-- 本体（折りたたみ対象） -->
+    <div class="sent-block-body" id="sent-body-${sent.id}">
 
     <!-- スペイン語表示 -->
-    <div class="field">
-      <div class="display-preview">${sent.spanish_display || ''}</div>
-    </div>
+    <div class="display-preview" id="sent-display-${sent.id}">${sent.spanish_display || ''}</div>
 
-    <!-- チャンク直訳セクション -->
-    <div class="chunk-input-section">
-      <label style="font-size:0.68rem;letter-spacing:0.25em;color:var(--muted)">
-        チャンク直訳
-      </label>
-      <div class="input-hint-text">
-        単語: そのまま　( ) : 表現（細分化なし）　[ ] : フレーズ（細分化あり）　/ / : チャンク区切り
+    <!-- チャンク記法入力エリア -->
+    <div class="chunk-input-section" id="chunk-input-section-${sent.id}">
+      <div class="input-hint-text" style="margin-bottom:4px">
+        単語: そのまま　{ } : 表現（記号含む）　[ ] : フレーズ（細分化あり）　" " : 語彙登録なし　/ : チャンク区切り
       </div>
-      <textarea class="chunk-spanish-input" rows="2" placeholder="例: /últimamente/ /[tratamos de mezclar]/ /los jueves/"></textarea>
-      <div class="chunk-pairs-wrap" id="chunk-pairs-${sent.id}"></div>
-      <div class="chunk-literal-preview" id="chunk-literal-${sent.id}"></div>
-      <button class="btn-chunk-save" id="btn-chunk-save-${sent.id}" style="display:none">直訳を保存</button>
+      <div style="display:flex;gap:6px;align-items:flex-start">
+        <textarea class="chunk-spanish-input" rows="2"
+          placeholder="例: últimamente/[tratamos de] mezclar/(los jueves)/entre sus audios"
+          style="flex:1"></textarea>
+        <button class="btn-chunk-go btn-auto" style="align-self:flex-end;white-space:nowrap">解析</button>
+      </div>
     </div>
 
-    <!-- 日本語意味 -->
+    <!-- チャンクブロック一覧 -->
+    <div id="chunk-blocks-${sent.id}" style="display:flex;flex-direction:column;gap:8px"></div>
+
+    <!-- チャンク直訳プレビュー（全体） -->
+    <div class="chunk-literal-preview" id="chunk-literal-${sent.id}" style="display:none"></div>
+
+    <!-- 日本語意味（自然な翻訳） -->
     <div class="field">
-      <label>日本語意味（自然な翻訳）</label>
-      <textarea class="sent-japanese" rows="2" placeholder="日本語の意味">${sent.japanese || ''}</textarea>
+      <button class="s2-section-toggle" data-target="sent-jp-wrap-${sent.id}" style="
+        display:flex;align-items:center;gap:6px;background:none;border:none;
+        font-family:'Noto Serif JP',serif;font-size:0.68rem;letter-spacing:0.2em;
+        color:var(--muted);cursor:pointer;padding:4px 0;width:100%;text-align:left">
+        <span class="toggle-icon">▼</span> 日本語の意味（自然な翻訳）
+      </button>
+      <div id="sent-jp-wrap-${sent.id}">
+        <textarea class="sent-japanese" rows="2" placeholder="日本語の意味">${sent.japanese || ''}</textarea>
+      </div>
     </div>
 
-    <!-- 語彙登録 -->
-    <button class="btn-vocab">語彙を登録する</button>
-    <div class="preview-wrap sent-preview" id="preview-${sent.id}">
-      <span style="color:var(--muted);font-size:0.8rem">語彙登録後にプレビューが表示されます</span>
+    <!-- ▼ プレビュー -->
+    <div>
+      <button class="s2-section-toggle preview-section-toggle" data-target="sent-preview-wrap-${sent.id}" style="
+        display:flex;align-items:center;gap:6px;background:none;border:none;
+        font-family:'Noto Serif JP',serif;font-size:0.68rem;letter-spacing:0.2em;
+        color:var(--muted);cursor:pointer;padding:4px 0;width:100%;text-align:left">
+        <span class="toggle-icon">▼</span> プレビュー
+      </button>
+      <div id="sent-preview-wrap-${sent.id}" style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+
+        <!-- スペイン語インタラクティブ表示 -->
+        <div>
+          <div style="font-size:0.62rem;letter-spacing:0.2em;color:var(--muted);margin-bottom:5px">スペイン語</div>
+          <div class="preview-wrap s2-spanish-preview" id="s2-preview-spanish-${sent.id}"
+            style="line-height:2;padding:10px 12px;cursor:pointer;min-height:36px">
+          </div>
+          <div class="preview-meaning-bubble" id="s2-preview-bubble-${sent.id}" style="display:none"></div>
+        </div>
+
+        <!-- チャンク直訳 -->
+        <div id="s2-preview-chunk-wrap-${sent.id}">
+          <div style="font-size:0.62rem;letter-spacing:0.2em;color:var(--muted);margin-bottom:5px">チャンク直訳</div>
+          <div class="chunk-literal-preview s2-chunk-literal-interactive" id="s2-preview-chunks-${sent.id}"
+            style="line-height:2.2;padding:8px 10px;cursor:pointer;min-height:32px">
+          </div>
+        </div>
+
+        <!-- ＋ 自然な翻訳 -->
+        <div>
+          <button class="s2-jp-reveal-btn" id="s2-jp-reveal-${sent.id}" style="
+            background:none;border:1px solid color-mix(in srgb,var(--earth) 35%,transparent);
+            color:var(--muted);padding:6px 14px;font-family:'Noto Serif JP',serif;
+            font-size:0.75rem;letter-spacing:0.1em;cursor:pointer;transition:0.2s">
+            ＋ 自然な翻訳を表示
+          </button>
+          <div id="s2-jp-text-${sent.id}" style="display:none;margin-top:6px;
+            padding:10px 12px;background:color-mix(in srgb,var(--earth) 5%,var(--surface));
+            border:1px solid color-mix(in srgb,var(--earth) 15%,transparent);
+            font-size:0.88rem;line-height:1.9;color:var(--text)">
+          </div>
+        </div>
+
+      </div>
     </div>
-    <div class="preview-meaning-bubble" id="bubble-${sent.id}" style="display:none"></div>
+
+    </div><!-- /sent-block-body -->
   `
 
-  // 削除
-  block.querySelector('.btn-sentence-delete').addEventListener('click', async () => {
+  // センテンス削除
+  block.querySelector('.btn-sentence-delete').addEventListener('click', async (e) => {
+    e.stopPropagation()
     if (!confirm('このセンテンスを削除しますか？')) return
     await db.from('audio_sentence_vocab').delete().eq('sentence_id', sent.id)
     await db.from('audio_sentence_chunks').delete().eq('sentence_id', sent.id)
@@ -301,172 +373,706 @@ function renderTextSentenceBlock(audioIdx, sentIdx, sent) {
     await db.from('audio_sentences').update({ japanese: e.target.value }).eq('id', sent.id)
   })
 
-  // 語彙登録 — チャンク入力欄に記法があればそちらを優先して渡す
-  block.querySelector('.btn-vocab').addEventListener('click', () => {
-    const chunkRaw = block.querySelector('.chunk-spanish-input').value.trim()
-    // チャンク入力欄の / を除去して1つの記法文字列として渡す
-    // 例: /últimamente/ /[tratamos de mezclar]/ → últimamente [tratamos de mezclar]
-    const vocabRaw = chunkRaw
-      ? chunkRaw.split('/').map(s => s.trim()).filter(s => s.length > 0).join(' ')
-      : (sent.spanish_raw || sent.spanish_display || '')
-    openVocabPopup({ ...sent, spanish_raw: vocabRaw }, audioIdx)
+  // センテンスブロック本体 折りたたみ
+  block.querySelector('.sent-block-header').addEventListener('click', (e) => {
+    if (e.target.closest('button')) return
+    const body = document.getElementById(`sent-body-${sent.id}`)
+    const icon = block.querySelector('.sent-block-header .audio-toggle-icon')
+    const preview = block.querySelector('.sent-header-preview')
+    if (!body) return
+    const isOpen = body.style.display !== 'none'
+    body.style.display = isOpen ? 'none' : 'block'
+    icon.textContent = isOpen ? '▶' : '▼'
+    preview.style.display = isOpen ? 'inline' : 'none'
   })
 
-  // チャンク: 既存データ読み込み & GOボタン
+  // セクション折りたたみ
+  block.querySelectorAll('.s2-section-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target
+      const target = document.getElementById(targetId)
+      if (!target) return
+      const isOpen = target.style.display !== 'none'
+      target.style.display = isOpen ? 'none' : 'block'
+      btn.querySelector('.toggle-icon').textContent = isOpen ? '▶' : '▼'
+    })
+  })
+
   loadChunksForSentence(sent, block)
+
+  // ===== プレビューセクション初期化 =====
+  initSentencePreview(sent, block)
 
   wrap.appendChild(block)
 }
 
-// チャンク直訳の読み込みと描画
+// ===== Step2 プレビューセクション =====
+function initSentencePreview(sent, block) {
+  // ＋ 自然な翻訳ボタン
+  const revealBtn = block.querySelector(`#s2-jp-reveal-${sent.id}`)
+  const jpText = block.querySelector(`#s2-jp-text-${sent.id}`)
+  if (revealBtn && jpText) {
+    revealBtn.addEventListener('click', () => {
+      const japanese = block.querySelector('.sent-japanese')?.value || sent.japanese || ''
+      if (!japanese.trim()) {
+        jpText.textContent = '（未入力）'
+      } else {
+        jpText.textContent = japanese
+      }
+      const isShown = jpText.style.display !== 'none'
+      jpText.style.display = isShown ? 'none' : 'block'
+      revealBtn.textContent = isShown ? '＋ 自然な翻訳を表示' : '− 自然な翻訳を閉じる'
+    })
+  }
+
+  // プレビューセクション折りたたみ
+  block.querySelectorAll('.preview-section-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.dataset.target
+      const target = document.getElementById(targetId)
+      if (!target) return
+      const isOpen = target.style.display !== 'none'
+      target.style.display = isOpen ? 'none' : 'flex'
+      btn.querySelector('.toggle-icon').textContent = isOpen ? '▶' : '▼'
+      if (!isOpen) renderS2SpanishPreview(sent, block)
+    })
+  })
+
+  // 初回描画
+  renderS2SpanishPreview(sent, block)
+}
+
+// ===== ここが修正箇所 =====
+// スペイン語インタラクティブ表示を描画
+async function renderS2SpanishPreview(sent, block) {
+  const spanishEl = block.querySelector(`#s2-preview-spanish-${sent.id}`)
+  const bubble = block.querySelector(`#s2-preview-bubble-${sent.id}`)
+  if (!spanishEl) return
+
+  // チャンクデータ取得（現在のDOM入力値 or DB）
+  const { data: chunks } = await db.from('audio_sentence_chunks')
+    .select('*').eq('sentence_id', sent.id).order('sort_order')
+
+  // 語彙データ取得
+  const { data: vocabData } = await db.from('audio_sentence_vocab')
+    .select('*').eq('sentence_id', sent.id)
+  const vocabMap = {}
+  if (vocabData) vocabData.forEach(v => { vocabMap[v.spanish] = v.selected_meaning || '' })
+
+  // チャンク直訳プレビュー更新
+  renderS2ChunkLiteral(sent, block, chunks || [])
+
+  spanishEl.innerHTML = ''
+
+  if (!chunks || chunks.length === 0) {
+    spanishEl.textContent = sent.spanish_display || ''
+    return
+  }
+
+  let activeChunkEl = null
+
+  // 展開中チャンクを元のテキストに戻す
+  function collapseChunk(chunkSpan) {
+    chunkSpan.innerHTML = ''
+    chunkSpan.textContent = chunkSpan.dataset.originalText
+    chunkSpan.classList.remove('active')
+  }
+
+  function resetAll() {
+    if (activeChunkEl) collapseChunk(activeChunkEl)
+    spanishEl.querySelectorAll('.s2-chunk-token').forEach(el => el.classList.remove('active'))
+    bubble.style.display = 'none'
+    activeChunkEl = null
+  }
+
+  function showBubble(text) {
+    if (!text) { bubble.style.display = 'none'; return }
+    bubble.textContent = text
+    bubble.style.display = 'inline-block'
+  }
+
+  chunks.forEach((chunk, ci) => {
+    const chunkSpan = document.createElement('span')
+    chunkSpan.className = 's2-chunk-token preview-token'
+    chunkSpan.dataset.chunkIdx = ci
+    chunkSpan.dataset.originalText = chunk.spanish_chunk
+    if (ci > 0) spanishEl.appendChild(document.createTextNode(' '))
+
+    // チャンク内のサブトークン（leafTokens: phraseの親は含めず子のみ）
+    const raw = chunk.spanish_raw || chunk.spanish_chunk
+    const tokens = parseTokens(raw)
+    const leafTokens = getLeafTokens(tokens)
+    const hasSubTokens = leafTokens.length > 1 ||
+      (leafTokens.length === 1 && leafTokens[0].type !== 'word')
+
+    chunkSpan.textContent = chunk.spanish_chunk
+
+    chunkSpan.addEventListener('click', (e) => {
+      e.stopPropagation()
+
+      if (activeChunkEl && activeChunkEl !== chunkSpan) {
+        // 別のチャンク選択 → 現在のを閉じてリセット
+        collapseChunk(activeChunkEl)
+        spanishEl.querySelectorAll('.s2-chunk-token').forEach(el => el.classList.remove('active'))
+        bubble.style.display = 'none'
+        activeChunkEl = null
+      }
+
+      if (activeChunkEl === chunkSpan) {
+        // 同チャンク再タップ → リセット
+        resetAll()
+        return
+      }
+
+      // 1回目タップ: ハイライト＋直訳バブル＋サブトークン展開（同時）
+      activeChunkEl = chunkSpan
+      chunkSpan.classList.add('active')
+
+      // チャンクの直訳を取得
+      const jpInputs = block.querySelectorAll('.chunk-block-item')
+      let chunkJp = chunk.japanese_chunk || ''
+      if (jpInputs[ci]) {
+        const inp = jpInputs[ci].querySelector('.chunk-jp-input')
+        if (inp) chunkJp = inp.value || chunkJp
+      }
+      showBubble(chunkJp || chunk.spanish_chunk)
+
+      // サブトークンがあれば即展開（内部の単語・表現を個別タップ可能にする）
+      if (hasSubTokens) {
+        expandChunkToSubs(chunkSpan, leafTokens, vocabMap, bubble, showBubble)
+      }
+    })
+
+    spanishEl.appendChild(chunkSpan)
+  })
+
+  // 余白クリック → リセット
+  spanishEl.addEventListener('click', (e) => {
+    if (e.target === spanishEl) resetAll()
+  })
+}
+
+// チャンクをサブトークンに展開（1回目タップと同時に実行）
+function expandChunkToSubs(chunkSpan, leafTokens, vocabMap, bubble, showBubble) {
+  chunkSpan.innerHTML = ''
+  chunkSpan.classList.add('active')
+
+  leafTokens.forEach((token, ti) => {
+    if (ti > 0) chunkSpan.appendChild(document.createTextNode(' '))
+    const subSpan = document.createElement('span')
+    subSpan.className = `s2-sub-token preview-token ${token.type}`
+    // 表示テキスト: displayTextがあれば元の記号付き文字列、なければtext
+    subSpan.textContent = token.displayText || token.text
+    if (token.type !== 'silent') {
+      subSpan.addEventListener('click', (e) => {
+        e.stopPropagation()
+        chunkSpan.querySelectorAll('.s2-sub-token').forEach(el => el.classList.remove('active'))
+        subSpan.classList.add('active')
+        const meaning = vocabMap[token.text] || ''
+        if (meaning) {
+          showBubble(`${token.text} — ${meaning}`)
+        } else {
+          showBubble(token.text)
+        }
+      })
+    }
+    chunkSpan.appendChild(subSpan)
+  })
+}
+
+// チャンク直訳インタラクティブ表示
+function renderS2ChunkLiteral(sent, block, chunks) {
+  const litEl = block.querySelector(`#s2-preview-chunks-${sent.id}`)
+  const bubble = block.querySelector(`#s2-preview-bubble-${sent.id}`)
+  const spanishEl = block.querySelector(`#s2-preview-spanish-${sent.id}`)
+  if (!litEl) return
+
+  litEl.innerHTML = ''
+
+  if (!chunks || chunks.length === 0) {
+    litEl.textContent = '（チャンク未登録）'
+    litEl.style.color = 'var(--muted)'
+    return
+  }
+  litEl.style.color = ''
+
+  chunks.forEach((chunk, ci) => {
+    if (ci > 0) {
+      const sep = document.createElement('span')
+      sep.textContent = '／'
+      sep.style.cssText = 'color:var(--muted);margin:0 2px'
+      litEl.appendChild(sep)
+    }
+
+    // DOM上の最新直訳値を取得
+    const jpInputs = block.querySelectorAll('.chunk-block-item')
+    let jpText = chunk.japanese_chunk || chunk.spanish_chunk
+    if (jpInputs[ci]) {
+      const inp = jpInputs[ci].querySelector('.chunk-jp-input')
+      if (inp && inp.value.trim()) jpText = inp.value.trim()
+    }
+
+    const span = document.createElement('span')
+    span.className = 'chunk-literal-item'
+    span.textContent = jpText
+    span.style.cssText = 'cursor:pointer;padding:1px 3px;border-radius:2px;transition:background 0.15s'
+
+    span.addEventListener('click', (e) => {
+      e.stopPropagation()
+      litEl.querySelectorAll('.chunk-literal-item').forEach(el => el.classList.remove('highlight'))
+      span.classList.add('highlight')
+      bubble.textContent = chunk.spanish_chunk
+      bubble.style.display = 'inline-block'
+      if (spanishEl) {
+        spanishEl.querySelectorAll('.s2-chunk-token').forEach(el => el.classList.remove('active'))
+        const chunkTokens = spanishEl.querySelectorAll('.s2-chunk-token')
+        if (chunkTokens[ci]) chunkTokens[ci].classList.add('active')
+      }
+    })
+    litEl.appendChild(span)
+  })
+}
+
+// ===== チャンクブロック（新UI）: チャンクごとにスペイン語+直訳+語彙リスト =====
+async function renderChunkBlocks(sent, block, chunks) {
+  const chunksWrap = block.querySelector(`#chunk-blocks-${sent.id}`)
+  const literalPreview = block.querySelector(`#chunk-literal-${sent.id}`)
+  chunksWrap.innerHTML = ''
+
+  if (chunks.length === 0) {
+    literalPreview.style.display = 'none'
+    return
+  }
+
+  // 既存の語彙データをまとめて取得
+  const { data: existingVocab } = await db.from('audio_sentence_vocab')
+    .select('*').eq('sentence_id', sent.id).order('sort_order')
+  const existingVocabMap = {}
+  if (existingVocab) existingVocab.forEach(v => { existingVocabMap[v.spanish] = v })
+
+  const { data: lookupData } = await db.from('lookup_forms')
+    .select('form, entry_id, dictionary_entries(id, spanish, japanese)')
+  const lookupMap = buildLookupMap(lookupData || [])
+
+  const chunkIdMap = {}
+  chunks.forEach(c => { if (c.id) chunkIdMap[c.spanish_chunk + '_' + c.sort_order] = c.id })
+
+  function updateLiteralPreview() {
+    const parts = [...chunksWrap.querySelectorAll('.chunk-block-item')].map(el => {
+      const inp = el.querySelector('.chunk-jp-input')
+      return (inp && inp.value.trim()) ? inp.value.trim() : '…'
+    })
+    if (parts.length > 0) {
+      literalPreview.textContent = parts.join('／')
+      literalPreview.style.display = 'block'
+    } else {
+      literalPreview.style.display = 'none'
+    }
+  }
+
+  // japanese_chunkをidで直接updateする（insert/deleteしない）
+  async function saveChunkJp(chunkId, value) {
+    if (!chunkId) return
+    await db.from('audio_sentence_chunks')
+      .update({ japanese_chunk: value })
+      .eq('id', chunkId)
+  }
+
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci]
+
+    const raw = chunk.spanish_raw || chunk.spanish_chunk
+    const tokens = parseTokens(raw)
+    const flatTokens = flattenTokens(tokens)
+    // 語彙登録用: expressionは1トークンとして扱い、phraseの子のみ個別展開
+    const vocabTokens = getLeafTokens(tokens)
+
+    const spanishList = [...new Set(vocabTokens.map(t => t.text))]
+    const { data: meanings } = await db.from('vocab_meanings')
+      .select('*').in('spanish', spanishList)
+    const meaningsMap = {}
+    if (meanings) meanings.forEach(m => { meaningsMap[m.spanish] = m.meanings || [] })
+
+    const typeLabel = chunk.chunk_type === 'phrase' ? 'フレーズ'
+      : chunk.chunk_type === 'expression' ? '表現' : ''
+
+    const chunkEl = document.createElement('div')
+    chunkEl.className = 'chunk-block-item'
+    chunkEl.dataset.chunkKey = chunk.spanish_chunk
+    chunkEl.dataset.chunkRaw = chunk.spanish_raw || chunk.spanish_chunk
+    chunkEl.dataset.chunkType = chunk.chunk_type || 'word'
+    chunkEl.style.cssText = `
+      border:1px solid color-mix(in srgb,var(--earth) 20%,transparent);
+      background:var(--surface);
+      padding:10px 12px;
+      display:flex;flex-direction:column;gap:8px;
+    `
+
+    chunkEl.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-size:0.65rem;letter-spacing:0.2em;color:var(--accent)">
+              チャンク ${ci + 1}
+            </span>
+            ${typeLabel ? `<span style="font-size:0.58rem;padding:1px 5px;
+              background:color-mix(in srgb,var(--earth) 15%,transparent);
+              color:var(--earth)">${typeLabel}</span>` : ''}
+          </div>
+          <div style="font-size:0.9rem;color:var(--text);margin-bottom:8px;line-height:1.6">
+            ${chunk.spanish_chunk}
+          </div>
+          <input type="text" class="chunk-jp-input"
+            placeholder="日本語直訳"
+            value="${chunk.japanese_chunk || ''}"
+            style="width:100%" />
+        </div>
+      </div>
+
+      <!-- 語彙リスト（折りたたみ可） -->
+      <div>
+        <button class="s2-section-toggle chunk-vocab-toggle" data-target="chunk-vocab-${sent.id}-${ci}" style="
+          display:flex;align-items:center;gap:5px;background:none;border:none;
+          font-family:'Noto Serif JP',serif;font-size:0.65rem;letter-spacing:0.15em;
+          color:var(--muted);cursor:pointer;padding:2px 0;width:100%;text-align:left">
+          <span class="toggle-icon">▼</span> 語彙登録 (${vocabTokens.length}語)
+        </button>
+        <div id="chunk-vocab-${sent.id}-${ci}" class="chunk-vocab-list"
+          style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+        </div>
+      </div>
+    `
+
+    const jpInput = chunkEl.querySelector('.chunk-jp-input')
+    const chunkId = chunk.id || null
+    let chunkSaveTimer = null
+    jpInput.addEventListener('input', () => {
+      updateLiteralPreview()
+      renderS2ChunkLiteral(sent, block, chunks)
+      // 1秒後に自動保存（debounce）
+      clearTimeout(chunkSaveTimer)
+      chunkSaveTimer = setTimeout(() => saveChunkJp(chunkId, jpInput.value.trim()), 1000)
+    })
+    jpInput.addEventListener('blur', () => {
+      clearTimeout(chunkSaveTimer)
+      saveChunkJp(chunkId, jpInput.value.trim())
+    })
+
+    chunkEl.querySelector('.chunk-vocab-toggle').addEventListener('click', (e) => {
+      const targetId = e.currentTarget.dataset.target
+      const target = document.getElementById(targetId)
+      if (!target) return
+      const isOpen = target.style.display !== 'none'
+      target.style.display = isOpen ? 'none' : 'flex'
+      e.currentTarget.querySelector('.toggle-icon').textContent = isOpen ? '▶' : '▼'
+    })
+
+    const vocabListEl = chunkEl.querySelector(`#chunk-vocab-${sent.id}-${ci}`)
+    vocabListEl.style.display = 'flex'
+
+    vocabTokens.forEach((token, ti) => {
+      const existing = existingVocabMap[token.text]
+      const rawMs = meaningsMap[token.text] || []
+      const ms = [...new Set(rawMs)]
+      const selectedMeaning = existing?.selected_meaning || ms[0] || ''
+      const dictMatch = checkDictMatch(token.text, lookupMap)
+      const dictStatus = dictMatch ? 'registered' : 'unregistered'
+      const tokTypeLabel = token.type === 'phrase' ? 'フレーズ'
+        : token.type === 'expression' ? '表現' : '単語'
+      const tokTypeClass = `vocab-type-${token.type === 'expression' ? 'expression' : 'word'}`
+
+      const vocabRow = document.createElement('div')
+      vocabRow.style.cssText = `
+        padding:8px 10px;
+        background:var(--bg);
+        border:1px solid color-mix(in srgb,var(--earth) 15%,transparent);
+        display:flex;flex-direction:column;gap:6px;
+        width:100%;
+      `
+      vocabRow.dataset.spanish = token.text
+
+      vocabRow.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span class="vocab-type-badge ${tokTypeClass}">${tokTypeLabel}</span>
+            <span style="font-size:0.85rem">${token.text}</span>
+            ${token.parentText ? `<span style="font-size:0.62rem;color:var(--muted)">（${token.parentText}内）</span>` : ''}
+          </div>
+          <button class="btn-dict ${dictStatus}" style="font-size:0.62rem;flex-shrink:0">
+            ${dictStatus === 'registered' ? '確認・編集' : '辞書登録'}
+          </button>
+        </div>
+        <div class="vocab-meaning-area" style="display:flex;flex-direction:column;gap:4px"></div>
+      `
+
+      vocabRow.querySelector('.btn-dict').addEventListener('click', () => {
+        currentDictVocabInfo = { token, sentId: sent.id }
+        openDictPopup(token.text, dictStatus, dictMatch?.entry_id || null)
+      })
+
+      const meaningArea = vocabRow.querySelector('.vocab-meaning-area')
+      const currentMeanings = [...ms]
+      let currentSelected = selectedMeaning
+
+      function renderInlineMeanings() {
+        meaningArea.innerHTML = ''
+
+        currentMeanings.forEach((m, mi) => {
+          const isSelected = m === currentSelected
+          const mRow = document.createElement('div')
+          mRow.style.cssText = `display:flex;align-items:center;gap:5px`
+          mRow.innerHTML = `
+            <div class="meaning-select-btn" style="
+              flex:1;padding:5px 8px;font-size:0.82rem;cursor:pointer;
+              background:${isSelected ? 'color-mix(in srgb,var(--accent) 8%,var(--surface))' : 'var(--surface)'};
+              border:1px solid ${isSelected ? 'var(--accent)' : 'color-mix(in srgb,var(--earth) 20%,transparent)'};
+              display:flex;align-items:center;gap:5px">
+              <span style="flex:1">${m}</span>
+              ${isSelected ? '<span style="font-size:0.6rem;color:var(--accent)">✓</span>' : ''}
+            </div>
+            <button class="btn-edit-meaning" style="background:none;border:1px solid var(--earth);color:var(--earth);
+              font-size:0.6rem;padding:3px 6px;cursor:pointer;font-family:'Noto Serif JP',serif;flex-shrink:0">編集</button>
+            <button class="btn-del-meaning" style="background:none;border:1px solid var(--muted);color:var(--muted);
+              font-size:0.6rem;padding:3px 6px;cursor:pointer;font-family:'Noto Serif JP',serif;flex-shrink:0">削除</button>
+          `
+          mRow.querySelector('.meaning-select-btn').addEventListener('click', async () => {
+            currentSelected = m
+            await saveVocabEntry(sent, token, m, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+            renderInlineMeanings()
+          })
+          mRow.querySelector('.btn-edit-meaning').addEventListener('click', async () => {
+            const newVal = prompt('意味を編集してください', m)
+            if (!newVal || newVal.trim() === m) return
+            const trimmed = newVal.trim()
+            const { data: vm } = await db.from('vocab_meanings').select('*').eq('spanish', token.text).maybeSingle()
+            if (vm) {
+              const updated = [...new Set(vm.meanings.map(x => x === m ? trimmed : x))]
+              await db.from('vocab_meanings').update({ meanings: updated }).eq('id', vm.id)
+              currentMeanings[mi] = trimmed
+              if (currentSelected === m) {
+                currentSelected = trimmed
+                await saveVocabEntry(sent, token, trimmed, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+              }
+              renderInlineMeanings()
+            }
+          })
+          mRow.querySelector('.btn-del-meaning').addEventListener('click', async () => {
+            if (!confirm(`「${m}」を削除しますか？`)) return
+            const { data: vm } = await db.from('vocab_meanings').select('*').eq('spanish', token.text).maybeSingle()
+            if (vm) {
+              const updated = vm.meanings.filter(x => x !== m)
+              await db.from('vocab_meanings').update({ meanings: updated }).eq('id', vm.id)
+              currentMeanings.splice(mi, 1)
+              if (currentSelected === m) currentSelected = currentMeanings[0] || ''
+              renderInlineMeanings()
+            }
+          })
+          meaningArea.appendChild(mRow)
+        })
+
+        const addRow = document.createElement('div')
+        addRow.style.cssText = 'display:flex;gap:5px;align-items:center;margin-top:2px'
+        addRow.innerHTML = `
+          <input type="text" placeholder="新しい意味を追加"
+            style="flex:1;font-size:0.78rem;padding:5px 8px;background:var(--bg);
+            border:1px solid color-mix(in srgb,var(--earth) 30%,transparent);
+            font-family:'Noto Serif JP',serif;color:var(--text);outline:none" />
+          <button style="background:var(--earth);color:var(--surface);border:none;
+            padding:5px 10px;font-family:'Noto Serif JP',serif;font-size:0.72rem;cursor:pointer">追加</button>
+        `
+        const addInput = addRow.querySelector('input')
+        const addBtn = addRow.querySelector('button')
+        async function doAdd() {
+          const val = addInput.value.trim()
+          if (!val || currentMeanings.includes(val)) return
+          await saveVocabMeaning(token.text, val)
+          currentMeanings.push(val)
+          if (!currentSelected) currentSelected = val
+          await saveVocabEntry(sent, token, currentSelected, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+          addInput.value = ''
+          renderInlineMeanings()
+        }
+        addBtn.addEventListener('click', doAdd)
+        addInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd() } })
+        meaningArea.appendChild(addRow)
+      }
+
+      renderInlineMeanings()
+      vocabListEl.appendChild(vocabRow)
+    })
+
+    chunksWrap.appendChild(chunkEl)
+  }
+
+  updateLiteralPreview()
+  renderS2SpanishPreview(sent, block)
+}
+
+// 語彙エントリを1件保存（upsert風）
+async function saveVocabEntry(sent, token, selectedMeaning, dictEntryId) {
+  const session = await db.auth.getSession()
+  const userId = session.data.session.user.id
+  await db.from('audio_sentence_vocab')
+    .delete()
+    .eq('sentence_id', sent.id)
+    .eq('spanish', token.text)
+  await db.from('audio_sentence_vocab').insert({
+    sentence_id: sent.id,
+    material_id: materialId,
+    spanish: token.text,
+    type: token.type,
+    selected_meaning: selectedMeaning,
+    dictionary_entry_id: dictEntryId || null,
+    sort_order: 0,
+    user_id: userId
+  })
+  if (selectedMeaning) await saveVocabMeaning(token.text, selectedMeaning)
+}
+
+// ===== センテンスパース：| 区切り対応 =====
+function parseSentences(raw) {
+  if (raw.includes('|')) {
+    const parts = raw.split('|').map(s => s.trim()).filter(s => s.length > 0)
+    if (parts.length > 0) return parts
+  }
+  if (raw.includes('/')) {
+    const parts = raw.split('/').map(s => s.trim()).filter(s => s.length > 0)
+    if (parts.length > 0) return parts
+  }
+  return [raw]
+}
+
+// チャンクデータを解析してブロック描画
 async function loadChunksForSentence(sent, block) {
   const { data: existingChunks } = await db.from('audio_sentence_chunks')
     .select('*').eq('sentence_id', sent.id).order('sort_order')
 
-  // 既存チャンクがあれば入力欄とペアを復元
+  const chunkInput = block.querySelector('.chunk-spanish-input')
+  const goBtn = block.querySelector('.btn-chunk-go')
+
+  // このセンテンスのchunk状態をローカルで管理する配列
+  let currentChunks = []
+
   if (existingChunks && existingChunks.length > 0) {
-    const chunkText = existingChunks.map(c => c.spanish_raw ? `/${c.spanish_raw}/` : `/${c.spanish_chunk}/`).join(' ')
-    block.querySelector('.chunk-spanish-input').value = chunkText
-    renderChunkPairs(sent, block, existingChunks)
+    const restored = existingChunks
+      .map(c => c.spanish_raw || c.spanish_chunk)
+      .join('/')
+    chunkInput.value = restored
+    currentChunks = existingChunks
+    await renderChunkBlocks(sent, block, currentChunks)
+  } else if (sent.chunk_input) {
+    chunkInput.value = sent.chunk_input
   }
 
-  // リアルタイム更新（debounce 400ms）
-  let debounceTimer = null
-  block.querySelector('.chunk-spanish-input').addEventListener('input', () => {
-    clearTimeout(debounceTimer)
-    debounceTimer = setTimeout(async () => {
-      const raw = block.querySelector('.chunk-spanish-input').value
-      const rawParts = raw.split('/').map(s => s.trim()).filter(s => s.length > 0)
-
-      if (rawParts.length === 0) {
-        // 入力が空になったらペア行もクリア
-        renderChunkPairs(sent, block, [])
-        return
-      }
-
-      const displayParts = rawParts.map(p => stripSymbols(p))
-
-      // parseTokens でトップレベルトークンを取得し、[]() のまとまりを反映した表示ラベルを生成
-      // 例: "[tratamos de mezclar]" → type:phrase, label:"tratamos de mezclar"（1まとまり）
-      //     "(nosotras)" → type:expression, label:"nosotras"（1まとまり）
-      //     "últimamente" → type:word, label:"últimamente"
-      const chunkLabels = rawParts.map(p => {
-        const tokens = parseTokens(p)
-        if (tokens.length === 1) {
-          // 1トークンなら type に応じてラベルスタイルを付ける
-          return { display: tokens[0].text, type: tokens[0].type, raw: p }
-        }
-        // 複数トークンのチャンクはそのまま stripSymbols で表示
-        return { display: stripSymbols(p), type: 'word', raw: p }
-      })
-
-      // 現在DOM上にある日本語入力値を回収（キーは spanish_chunk）
-      const currentJpMap = {}
-      block.querySelectorAll(`#chunk-pairs-${sent.id} .chunk-pair-row`).forEach(row => {
-        const key = row.dataset.chunkKey
-        const val = row.querySelector('input[type="text"]').value
-        if (key) currentJpMap[key] = val
-      })
-
-      // 過去登録キャッシュ（新規チャンクにだけ使う）
-      const newKeys = chunkLabels.map(c => c.display).filter(d => !(d in currentJpMap))
-      let cacheMap = {}
-      if (newKeys.length > 0) {
-        const { data: cachedChunks } = await db.from('audio_sentence_chunks')
-          .select('spanish_chunk, japanese_chunk')
-          .in('spanish_chunk', newKeys)
-        if (cachedChunks) {
-          cachedChunks.forEach(c => {
-            if (!cacheMap[c.spanish_chunk] && c.japanese_chunk) {
-              cacheMap[c.spanish_chunk] = c.japanese_chunk
-            }
-          })
-        }
-      }
-
-      const draftChunks = chunkLabels.map((cl, i) => ({
-        spanish_chunk: cl.display,
-        spanish_raw: cl.raw,
-        chunk_type: cl.type,
-        // 既にDOMに入力済みの日本語を最優先で引き継ぐ
-        japanese_chunk: (cl.display in currentJpMap) ? currentJpMap[cl.display] : (cacheMap[cl.display] || ''),
-        sort_order: i
-      }))
-
-      renderChunkPairs(sent, block, draftChunks)
-    }, 400)
+  // チャンク入力テキストをblur時に自動保存
+  chunkInput.addEventListener('blur', async (e) => {
+    const val = e.target.value.trim()
+    if (!val) return
+    await db.from('audio_sentences')
+      .update({ chunk_input: val })
+      .eq('id', sent.id)
   })
-}
 
-// チャンクペア行の描画＋直訳プレビュー自動更新
-function renderChunkPairs(sent, block, chunks) {
-  const pairsWrap = block.querySelector(`#chunk-pairs-${sent.id}`)
-  const literalPreview = block.querySelector(`#chunk-literal-${sent.id}`)
-  const saveBtn = block.querySelector(`#btn-chunk-save-${sent.id}`)
+  goBtn.addEventListener('click', async () => {
+    const raw = chunkInput.value.trim()
+    if (!raw) return
 
-  pairsWrap.innerHTML = ''
+    const rawParts = raw.split('/').map(s => s.trim()).filter(s => s.length > 0)
+    if (rawParts.length === 0) return
 
-  // 直訳プレビュー更新関数
-  function updateLiteralPreview() {
-    const pairs = [...pairsWrap.querySelectorAll('.chunk-pair-row')]
-    const parts = pairs.map(row => {
-      const jp = row.querySelector('input[type="text"]').value.trim()
-      return jp || '…'
+    const chunkLabels = rawParts.map(p => {
+      const tokens = parseTokens(p)
+      if (tokens.length === 1) {
+        // 単一トークンの場合はそのtextをdisplayに
+        return { display: tokens[0].text, type: tokens[0].type, raw: p }
+      }
+      // 複数トークン: 記号除去したテキストをdisplayに
+      return { display: stripSymbols(p), type: 'word', raw: p }
     })
-    literalPreview.textContent = parts.join('／')
-  }
 
-  // DB保存（現在のDOM状態を保存）
-  async function saveChunksToDB() {
-    const rows = [...pairsWrap.querySelectorAll('.chunk-pair-row')]
-    const newChunks = rows.map((row, ci) => ({
-      sentence_id: sent.id,
-      material_id: materialId,
-      spanish_chunk: chunks[ci].spanish_chunk,
-      spanish_raw: chunks[ci].spanish_raw || chunks[ci].spanish_chunk,
-      chunk_type: chunks[ci].chunk_type || 'word',
-      japanese_chunk: row.querySelector('input').value.trim(),
-      sort_order: ci
+    // 現在のDOMから直訳を収集（key→value）
+    const currentJpMap = {}
+    block.querySelectorAll('.chunk-block-item').forEach(el => {
+      const key = el.dataset.chunkKey
+      const val = el.querySelector('.chunk-jp-input')?.value
+      if (key && val !== undefined) currentJpMap[key] = val
+    })
+
+    // チャンク構成が変わっていなければ再insert不要
+    // spanish_rawも比較して[]→()のような記法変更も検知する
+    const isSameStructure = currentChunks.length === chunkLabels.length &&
+      currentChunks.every((c, i) =>
+        c.spanish_chunk === chunkLabels[i].display &&
+        (c.spanish_raw || c.spanish_chunk) === chunkLabels[i].raw
+      )
+
+    if (isSameStructure && currentChunks.length > 0) {
+      // 構成変化なし → 直訳とspanish_rawをDBに保存して再描画
+      for (let i = 0; i < currentChunks.length; i++) {
+        const jp = currentJpMap[currentChunks[i].spanish_chunk] ?? currentChunks[i].japanese_chunk ?? ''
+        const newRaw = chunkLabels[i].raw
+        currentChunks[i] = { ...currentChunks[i], japanese_chunk: jp, spanish_raw: newRaw }
+        if (currentChunks[i].id) {
+          await db.from('audio_sentence_chunks')
+            .update({ japanese_chunk: jp, spanish_raw: newRaw })
+            .eq('id', currentChunks[i].id)
+        }
+      }
+      await renderChunkBlocks(sent, block, currentChunks)
+      return
+    }
+
+    // 構成が変わった場合のみ再insert
+    const newDisplayKeys = chunkLabels.map(c => c.display)
+    const missingKeys = newDisplayKeys.filter(k => !(k in currentJpMap))
+    let cacheMap = {}
+    if (missingKeys.length > 0) {
+      const { data: cached } = await db.from('audio_sentence_chunks')
+        .select('spanish_chunk, japanese_chunk')
+        .eq('sentence_id', sent.id)
+        .in('spanish_chunk', missingKeys)
+      if (cached) cached.forEach(c => {
+        if (!cacheMap[c.spanish_chunk] && c.japanese_chunk) cacheMap[c.spanish_chunk] = c.japanese_chunk
+      })
+      const stillMissing = missingKeys.filter(k => !cacheMap[k])
+      if (stillMissing.length > 0) {
+        const { data: globalCached } = await db.from('audio_sentence_chunks')
+          .select('spanish_chunk, japanese_chunk').in('spanish_chunk', stillMissing)
+        if (globalCached) globalCached.forEach(c => {
+          if (!cacheMap[c.spanish_chunk] && c.japanese_chunk) cacheMap[c.spanish_chunk] = c.japanese_chunk
+        })
+      }
+    }
+
+    const newChunks = chunkLabels.map((cl, i) => ({
+      spanish_chunk: cl.display,
+      spanish_raw: cl.raw,
+      japanese_chunk: (cl.display in currentJpMap) ? currentJpMap[cl.display] : (cacheMap[cl.display] || ''),
+      sort_order: i
     }))
+
     await db.from('audio_sentence_chunks').delete().eq('sentence_id', sent.id)
     if (newChunks.length > 0) {
-      await db.from('audio_sentence_chunks').insert(newChunks)
+      const insertData = newChunks.map(c => ({
+        sentence_id: sent.id,
+        material_id: materialId,
+        spanish_chunk: c.spanish_chunk,
+        spanish_raw: c.spanish_raw,
+        japanese_chunk: c.japanese_chunk,
+        sort_order: c.sort_order
+      }))
+      const { data: saved, error: insertError } = await db.from('audio_sentence_chunks')
+        .insert(insertData).select('id, sentence_id, material_id, spanish_chunk, spanish_raw, japanese_chunk, sort_order')
+      if (insertError) {
+        console.error('chunk insert error:', insertError)
+      }
+      currentChunks = saved || newChunks
+      await renderChunkBlocks(sent, block, currentChunks)
+    } else {
+      currentChunks = []
+      await renderChunkBlocks(sent, block, [])
     }
-  }
-
-  chunks.forEach((chunk, ci) => {
-    const row = document.createElement('div')
-    row.className = 'chunk-pair-row'
-    row.dataset.chunkKey = chunk.spanish_chunk
-
-    const typeLabel = chunk.chunk_type === 'phrase' ? 'フレーズ'
-      : chunk.chunk_type === 'expression' ? '表現' : ''
-    const typeBadge = typeLabel
-      ? `<span style="font-size:0.58rem;padding:1px 5px;letter-spacing:0.06em;
-          background:color-mix(in srgb,var(--earth) 15%,transparent);
-          color:var(--earth);margin-right:4px">${typeLabel}</span>`
-      : ''
-
-    row.innerHTML = `
-      <div class="chunk-spanish">${typeBadge}${chunk.spanish_chunk}</div>
-      <input type="text" placeholder="日本語チャンク" value="${chunk.japanese_chunk || ''}" />
-    `
-    const input = row.querySelector('input')
-    input.addEventListener('input', updateLiteralPreview)
-    // 日本語入力からフォーカスが外れたら自動保存
-    input.addEventListener('blur', saveChunksToDB)
-    pairsWrap.appendChild(row)
   })
-
-  updateLiteralPreview()
-  saveBtn.style.display = chunks.length > 0 ? 'block' : 'none'
-
-  // 保存ボタンも残す（明示的に保存したいとき用）
-  saveBtn.onclick = async () => {
-    await saveChunksToDB()
-    saveBtn.textContent = '保存しました ✓'
-    setTimeout(() => { saveBtn.textContent = '直訳を保存' }, 1800)
-  }
 }
 
 // ===== Step 3: 音声紐付け =====
@@ -474,11 +1080,9 @@ async function initStep3() {
   const container = document.getElementById('timing-audio-blocks')
   container.innerHTML = ''
 
-  // YouTube ID 読み込み
   const { data: material } = await db.from('audio_materials').select('youtube_id').eq('id', materialId).single()
   if (material?.youtube_id) document.getElementById('yt-id-input').value = material.youtube_id
 
-  // 各Audioブロック描画
   audioItems.forEach((item, idx) => renderTimingAudioBlock(idx))
   updateAudioCurrentLabel()
 }
@@ -504,7 +1108,6 @@ function renderTimingAudioBlock(idx) {
   const startStr = formatSec(item.start_sec || 0)
   const endStr = item.end_sec != null ? formatSec(item.end_sec) : '未設定'
 
-  // センテンスがある場合はセンテンス単位、ない場合はAudio全体で秒数設定
   let sentencesHTML = ''
   if (hasSentences) {
     sentencesHTML = item.sentences.map((sent, si) => `
@@ -531,11 +1134,14 @@ function renderTimingAudioBlock(idx) {
   }
 
   block.innerHTML = `
-    <div class="audio-block-header">
+    <div class="audio-block-header audio-block-toggle" data-target="timing-audio-body-${idx}" style="cursor:pointer">
       <span class="audio-block-title">Audio ${item.audio_number}</span>
-      <span class="audio-block-range">${startStr} — ${endStr}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="audio-block-range">${startStr} — ${endStr}</span>
+        <span class="audio-toggle-icon" style="font-size:0.65rem;color:var(--muted)">▼</span>
+      </div>
     </div>
-    <div class="audio-block-body">
+    <div class="audio-block-body" id="timing-audio-body-${idx}">
       <div class="sec-input-row">
         <div class="sec-input-wrap">
           <label>開始秒（Audio全体）</label>
@@ -558,7 +1164,6 @@ function renderTimingAudioBlock(idx) {
     </div>
   `
 
-  // Audio全体 ▶ ここから
   block.querySelector('.btn-mark-start').addEventListener('click', async () => {
     if (!ytPlayer) return
     const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
@@ -569,7 +1174,6 @@ function renderTimingAudioBlock(idx) {
     updateAudioCurrentLabel()
   })
 
-  // Audio全体 ■ ここまで
   block.querySelector('.btn-mark-end').addEventListener('click', async () => {
     if (!ytPlayer) return
     const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(2))
@@ -580,7 +1184,6 @@ function renderTimingAudioBlock(idx) {
     updateAudioCurrentLabel()
   })
 
-  // Audio全体 再生
   block.querySelector('.btn-play-range').addEventListener('click', () => {
     if (!ytPlayer) return
     const start = audioItems[idx].start_sec || 0
@@ -590,7 +1193,6 @@ function renderTimingAudioBlock(idx) {
     if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
   })
 
-  // Audio全体 手動入力
   block.querySelector('.audio-start').addEventListener('change', async (e) => {
     audioItems[idx].start_sec = parseFloat(e.target.value) || 0
     await saveItemRange(idx)
@@ -602,7 +1204,6 @@ function renderTimingAudioBlock(idx) {
     updateTimingBlockHeader(idx)
   })
 
-  // センテンスごとのイベント
   if (hasSentences) {
     item.sentences.forEach((sent, si) => {
       const sentBlock = block.querySelector(`#timing-sentence-${sent.id}`)
@@ -649,6 +1250,11 @@ function renderTimingAudioBlock(idx) {
     })
   }
 
+  block.querySelector('.audio-block-toggle').addEventListener('click', (e) => {
+    if (e.target.closest('button, input')) return
+    toggleAudioBody(block, `timing-audio-body-${idx}`)
+  })
+
   container.appendChild(block)
 }
 
@@ -680,7 +1286,6 @@ async function renderPreview() {
   const container = document.getElementById('preview-blocks')
   container.innerHTML = ''
 
-  // 全センテンスのチャンクをまとめて取得
   const allSentIds = audioItems.flatMap(item => (item.sentences || []).map(s => s.id))
   let chunksMap = {}
   if (allSentIds.length > 0) {
@@ -738,7 +1343,6 @@ async function renderPreview() {
         sentBlock.style.gap = '8px'
         sentBlock.id = `preview-sent-block-${sent.id}`
 
-        // スペイン語行
         sentBlock.innerHTML = `
           <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="btn-play-range preview-play"
@@ -754,7 +1358,6 @@ async function renderPreview() {
           </div>
           <div class="preview-meaning-bubble" id="bubble-${sent.id}" style="display:none"></div>
 
-          <!-- 展開ボタン行 -->
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
             ${hasJapanese ? `
               <button class="preview-expand-btn" id="btn-expand-jp-${sent.id}">
@@ -768,14 +1371,12 @@ async function renderPreview() {
             ` : ''}
           </div>
 
-          <!-- 日本語意味パネル -->
           ${hasJapanese ? `
             <div class="preview-expand-panel" id="panel-jp-${sent.id}">
               ${sent.japanese}
             </div>
           ` : ''}
 
-          <!-- チャンク直訳パネル -->
           ${hasChunks ? `
             <div class="preview-expand-panel" id="panel-chunk-${sent.id}">
               ${chunks.map((c, ci) => `
@@ -793,7 +1394,6 @@ async function renderPreview() {
 
         sentWrap.appendChild(sentBlock)
 
-        // 再生ボタン
         sentBlock.querySelector('.preview-play').addEventListener('click', () => {
           if (!ytPlayer) return
           const start = parseFloat(sentBlock.querySelector('.preview-play').dataset.start) || 0
@@ -803,7 +1403,6 @@ async function renderPreview() {
           if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
         })
 
-        // スペイン語テキストクリック（語彙バブル）
         const previewEl = sentBlock.querySelector(`#preview-${sent.id}`)
         const bubble = sentBlock.querySelector(`#bubble-${sent.id}`)
         if (previewEl && bubble) {
@@ -816,7 +1415,6 @@ async function renderPreview() {
           })
         }
 
-        // 日本語意味 展開ボタン
         if (hasJapanese) {
           const btnJp = sentBlock.querySelector(`#btn-expand-jp-${sent.id}`)
           const panelJp = sentBlock.querySelector(`#panel-jp-${sent.id}`)
@@ -827,7 +1425,6 @@ async function renderPreview() {
           })
         }
 
-        // チャンク直訳 展開ボタン＋タップでスペイン語ハイライト
         if (hasChunks) {
           const btnChunk = sentBlock.querySelector(`#btn-expand-chunk-${sent.id}`)
           const panelChunk = sentBlock.querySelector(`#panel-chunk-${sent.id}`)
@@ -837,14 +1434,10 @@ async function renderPreview() {
             btnChunk.textContent = isOpen ? '− チャンク直訳' : '＋ チャンク直訳'
           })
 
-          // チャンクアイテムタップ → スペイン語表示エリアにハイライト
           panelChunk.querySelectorAll('.chunk-literal-item').forEach(item => {
             item.addEventListener('click', () => {
-              // 同パネル内の他ハイライトを外す
               panelChunk.querySelectorAll('.chunk-literal-item').forEach(el => el.classList.remove('highlight'))
               item.classList.add('highlight')
-
-              // スペイン語表示エリアにチャンクテキストをバブル表示
               const spChunk = item.dataset.spanish
               if (bubble) {
                 bubble.textContent = spChunk
@@ -860,6 +1453,16 @@ async function renderPreview() {
   })
 }
 
+// ===== Audioブロック 折りたたみ共通ヘルパー =====
+function toggleAudioBody(block, bodyId) {
+  const body = document.getElementById(bodyId)
+  const icon = block.querySelector('.audio-block-header .audio-toggle-icon')
+  if (!body || !icon) return
+  const isOpen = body.style.display !== 'none'
+  body.style.display = isOpen ? 'none' : 'block'
+  icon.textContent = isOpen ? '▶' : '▼'
+}
+
 // ===== 秒数フォーマット =====
 function formatSec(sec) {
   const totalSec = parseFloat(sec) || 0
@@ -868,218 +1471,9 @@ function formatSec(sec) {
   return `${m}:${String(s).padStart(5, '0')}`
 }
 
-// ===== 語彙ポップアップ =====
+// ===== 語彙ポップアップ（後方互換用） =====
 async function openVocabPopup(sent, audioIdx) {
-  document.getElementById('popup-vocab-title').textContent = sent.spanish_display || sent.spanish_raw
-  const content = document.getElementById('popup-vocab-content')
-  content.innerHTML = '<div style="color:var(--muted);padding:12px">読み込み中...</div>'
-  openPopup('popup-vocab-overlay')
-
-  const { data: existingVocab } = await db.from('audio_sentence_vocab')
-    .select('*').eq('sentence_id', sent.id).order('sort_order')
-
-  const { data: lookupData } = await db.from('lookup_forms')
-    .select('form, entry_id, dictionary_entries(id, spanish, japanese)')
-  const lookupMap = buildLookupMap(lookupData || [])
-
-  const raw = sent.spanish_raw || ''
-  const tokens = parseTokens(raw)
-  const flatTokens = flattenTokens(tokens)
-  const spanishList = [...new Set(flatTokens.map(t => t.text))]
-
-  const { data: meanings } = await db.from('vocab_meanings')
-    .select('*').in('spanish', spanishList)
-  const meaningsMap = {}
-  if (meanings) meanings.forEach(m => { meaningsMap[m.spanish] = m.meanings || [] })
-
-  const existingMap = {}
-  if (existingVocab) existingVocab.forEach(v => { existingMap[v.spanish] = v })
-
-  content.innerHTML = ''
-  const vocabItems = []
-
-  flatTokens.forEach((token, i) => {
-    const existing = existingMap[token.text]
-    // 重複除去済みの意味リスト
-    const rawMs = meaningsMap[token.text] || []
-    const ms = [...new Set(rawMs)]
-    const selectedMeaning = existing?.selected_meaning || ms[0] || ''
-    const dictMatch = checkDictMatch(token.text, lookupMap)
-    const dictStatus = dictMatch ? 'registered' : 'unregistered'
-
-    const row = document.createElement('div')
-    row.className = 'vocab-row'
-    row.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:12px 0;border-bottom:1px solid color-mix(in srgb,var(--earth) 12%,transparent)'
-    const typeLabel = token.type === 'phrase' ? 'フレーズ' : token.type === 'expression' ? '表現' : '単語'
-    const typeClass = `vocab-type-${token.type}`
-
-    // ヘッダー行
-    const header = document.createElement('div')
-    header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px'
-    header.innerHTML = `
-      <div class="vocab-spanish-label" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        <span class="vocab-type-badge ${typeClass}">${typeLabel}</span>
-        <span style="font-size:0.88rem">${token.text}</span>
-        ${token.parentText ? `<span style="font-size:0.65rem;color:var(--muted)">（${token.parentText}内）</span>` : ''}
-      </div>
-      <button class="btn-dict ${dictStatus}" style="flex-shrink:0">${dictStatus === 'registered' ? '確認・編集' : '新規登録'}</button>
-    `
-    header.querySelector('.btn-dict').addEventListener('click', () => {
-      currentDictVocabInfo = { token, sentId: sent.id, idx: i, vocabItems }
-      openDictPopup(token.text, dictStatus, dictMatch?.entry_id || null)
-    })
-    row.appendChild(header)
-
-    // 意味リスト
-    const meaningList = document.createElement('div')
-    meaningList.style.cssText = 'display:flex;flex-direction:column;gap:4px'
-
-    const currentMeanings = [...ms] // ローカルで管理
-
-    function renderMeaningList() {
-      meaningList.innerHTML = ''
-      currentMeanings.forEach((m, mi) => {
-        const mRow = document.createElement('div')
-        mRow.style.cssText = 'display:flex;align-items:center;gap:6px'
-        const isSelected = m === vocabItems[i]?.selectedMeaning
-
-        mRow.innerHTML = `
-          <div style="flex:1;display:flex;align-items:center;gap:6px;padding:6px 10px;
-            background:${isSelected ? 'color-mix(in srgb,var(--accent) 8%,var(--surface))' : 'var(--bg)'};
-            border:1px solid ${isSelected ? 'var(--accent)' : 'color-mix(in srgb,var(--earth) 20%,transparent)'};
-            cursor:pointer;font-size:0.85rem">
-            <span style="flex:1" class="meaning-text">${m}</span>
-            ${isSelected ? '<span style="font-size:0.65rem;color:var(--accent)">✓ 選択中</span>' : ''}
-          </div>
-          <button class="btn-edit-meaning" style="background:none;border:1px solid var(--earth);color:var(--earth);
-            font-size:0.65rem;padding:4px 7px;cursor:pointer;font-family:'Noto Serif JP',serif">編集</button>
-          <button class="btn-delete-meaning" style="background:none;border:1px solid var(--muted);color:var(--muted);
-            font-size:0.65rem;padding:4px 7px;cursor:pointer;font-family:'Noto Serif JP',serif">削除</button>
-        `
-
-        // 選択
-        mRow.querySelector('.meaning-text').addEventListener('click', () => {
-          vocabItems[i].selectedMeaning = m
-          renderMeaningList()
-        })
-        mRow.querySelector('div').addEventListener('click', (e) => {
-          if (e.target.tagName === 'BUTTON') return
-          vocabItems[i].selectedMeaning = m
-          renderMeaningList()
-        })
-
-        // 編集
-        mRow.querySelector('.btn-edit-meaning').addEventListener('click', async () => {
-          const newVal = prompt('意味を編集してください', m)
-          if (!newVal || newVal.trim() === m) return
-          const trimmed = newVal.trim()
-          // vocab_meaningsを更新
-          const { data: vm } = await db.from('vocab_meanings').select('*').eq('spanish', token.text).maybeSingle()
-          if (vm) {
-            const updated = vm.meanings.map(x => x === m ? trimmed : x)
-            const deduped = [...new Set(updated)]
-            await db.from('vocab_meanings').update({ meanings: deduped }).eq('id', vm.id)
-            currentMeanings[mi] = trimmed
-            if (vocabItems[i].selectedMeaning === m) vocabItems[i].selectedMeaning = trimmed
-            renderMeaningList()
-          }
-        })
-
-        // 削除
-        mRow.querySelector('.btn-delete-meaning').addEventListener('click', async () => {
-          if (!confirm(`「${m}」を削除しますか？`)) return
-          const { data: vm } = await db.from('vocab_meanings').select('*').eq('spanish', token.text).maybeSingle()
-          if (vm) {
-            const updated = vm.meanings.filter(x => x !== m)
-            await db.from('vocab_meanings').update({ meanings: updated }).eq('id', vm.id)
-            currentMeanings.splice(mi, 1)
-            if (vocabItems[i].selectedMeaning === m) {
-              vocabItems[i].selectedMeaning = currentMeanings[0] || ''
-            }
-            renderMeaningList()
-          }
-        })
-
-        meaningList.appendChild(mRow)
-      })
-
-      // 新しい意味を追加
-      const addRow = document.createElement('div')
-      addRow.style.cssText = 'display:flex;gap:6px;align-items:center;margin-top:2px'
-      addRow.innerHTML = `
-        <input type="text" class="vocab-new-input" placeholder="新しい意味を追加"
-          style="flex:1;font-size:0.82rem;padding:6px 10px">
-        <button class="btn-add-meaning" style="background:var(--earth);color:var(--surface);border:none;
-          padding:6px 12px;font-family:'Noto Serif JP',serif;font-size:0.75rem;cursor:pointer">追加</button>
-      `
-      const newInput = addRow.querySelector('.vocab-new-input')
-      const addBtn = addRow.querySelector('.btn-add-meaning')
-
-      async function addMeaning() {
-        const val = newInput.value.trim()
-        if (!val) return
-        if (currentMeanings.includes(val)) {
-          newInput.value = ''
-          return
-        }
-        await saveVocabMeaning(token.text, val)
-        currentMeanings.push(val)
-        vocabItems[i].selectedMeaning = vocabItems[i].selectedMeaning || val
-        newInput.value = ''
-        renderMeaningList()
-      }
-
-      addBtn.addEventListener('click', addMeaning)
-      newInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addMeaning() } })
-
-      meaningList.appendChild(addRow)
-    }
-
-    row.appendChild(meaningList)
-    content.appendChild(row)
-
-    vocabItems.push({
-      token,
-      selectedMeaning,
-      dictEntryId: existing?.dictionary_entry_id || dictMatch?.entry_id || null,
-      existingId: existing?.id || null
-    })
-
-    renderMeaningList()
-  })
-
-  const saveBtn = document.createElement('button')
-  saveBtn.className = 'btn-publish'
-  saveBtn.style.marginTop = '16px'
-  saveBtn.textContent = '語彙を保存'
-  saveBtn.addEventListener('click', async () => {
-    const session = await db.auth.getSession()
-    const userId = session.data.session.user.id
-
-    await db.from('audio_sentence_vocab').delete().eq('sentence_id', sent.id)
-
-    const insertData = vocabItems.map((v, i) => ({
-      sentence_id: sent.id,
-      material_id: materialId,
-      spanish: v.token.text,
-      type: v.token.type,
-      selected_meaning: v.selectedMeaning,
-      dictionary_entry_id: v.dictEntryId || null,
-      sort_order: i,
-      user_id: userId
-    }))
-
-    if (insertData.length > 0) {
-      await db.from('audio_sentence_vocab').insert(insertData)
-      for (const v of vocabItems) {
-        if (v.selectedMeaning) await saveVocabMeaning(v.token.text, v.selectedMeaning)
-      }
-    }
-
-    closePopup('popup-vocab-overlay')
-    renderSentencePreview(sent, vocabItems)
-  })
-  content.appendChild(saveBtn)
+  console.log('openVocabPopup: deprecated in new UI')
 }
 
 function renderSentencePreview(sent, vocabItems) {
@@ -1192,9 +1586,15 @@ function renderDictResults(results) {
     </div>
   `).join('')
   container.querySelectorAll('.btn-link-dict').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       if (currentDictVocabInfo) {
-        currentDictVocabInfo.vocabItems[currentDictVocabInfo.idx].dictEntryId = btn.dataset.id
+        const { token, sentId } = currentDictVocabInfo
+        if (token && sentId) {
+          await db.from('audio_sentence_vocab')
+            .update({ dictionary_entry_id: btn.dataset.id })
+            .eq('sentence_id', sentId)
+            .eq('spanish', token.text)
+        }
       }
       closePopup('popup-dict-overlay')
     })
@@ -1207,22 +1607,38 @@ function parseTokens(raw) {
   let i = 0
   while (i < raw.length) {
     if (raw[i] === '[') {
+      // [] : フレーズ（細分化あり）- 記号含めて登録
       const end = findClosing(raw, i, '[', ']')
       const inner = raw.slice(i + 1, end)
       tokens.push({ type: 'phrase', text: stripSymbols(inner), children: parseInnerTokens(inner) })
       i = end + 1
-    } else if (raw[i] === '(') {
-      const end = findClosing(raw, i, '(', ')')
-      const inner = raw.slice(i + 1, end)
-      tokens.push({ type: 'expression', text: stripSymbols(inner) })
+    } else if (raw[i] === '{') {
+      // {} : 表現（記号含めてそのまま登録）
+      const end = findClosing(raw, i, '{', '}')
+      const inner = raw.slice(i + 1, end).trim()
+      tokens.push({ type: 'expression', text: inner })
       i = end + 1
+    } else if (raw[i] === '(') {
+      // () : 単語（細分化なし、記号含めて登録）
+      const end = findClosing(raw, i, '(', ')')
+      const inner = raw.slice(i + 1, end).trim()
+      tokens.push({ type: 'expression', text: inner })
+      i = end + 1
+    } else if (raw[i] === '"') {
+      // "" : 語彙登録なし（表示のみ）
+      const end = raw.indexOf('"', i + 1)
+      const inner = end > i ? raw.slice(i + 1, end).trim() : ''
+      if (inner) tokens.push({ type: 'silent', text: inner })
+      i = end > i ? end + 1 : i + 1
     } else if (raw[i] === ' ') {
       i++
     } else {
       let j = i
-      while (j < raw.length && !' []()'.includes(raw[j])) j++
-      const text = raw.slice(i, j)
-      if (text) tokens.push({ type: 'word', text })
+      while (j < raw.length && !' [](){}"\''.includes(raw[j])) j++
+      const rawText = raw.slice(i, j)
+      // 通常単語: 前後の句読点・疑問符等を除去して登録
+      const text = stripPunctuation(rawText)
+      if (text) tokens.push({ type: 'word', text, displayText: rawText })
       i = j
     }
   }
@@ -1235,14 +1651,16 @@ function parseInnerTokens(raw) {
   while (i < raw.length) {
     if (raw[i] === '(') {
       const end = findClosing(raw, i, '(', ')')
-      tokens.push({ type: 'expression', text: stripSymbols(raw.slice(i + 1, end)) })
+      tokens.push({ type: 'expression', text: raw.slice(i + 1, end).trim() })
       i = end + 1
     } else if (raw[i] === ' ') { i++ }
     else {
       let j = i
       while (j < raw.length && !' ()'.includes(raw[j])) j++
-      const text = raw.slice(i, j)
-      if (text) tokens.push({ type: 'word', text })
+      const rawText = raw.slice(i, j)
+      // フレーズ内の単語も記号除去
+      const text = stripPunctuation(rawText)
+      if (text) tokens.push({ type: 'word', text, displayText: rawText })
       i = j
     }
   }
@@ -1258,6 +1676,26 @@ function flattenTokens(tokens, parentText) {
   return result
 }
 
+// 表示用最小単位のトークンを取得
+// phrase → その子トークン（phraseの親は含めない）
+// word / expression → そのまま
+function getLeafTokens(tokens, parentText) {
+  const result = []
+  tokens.forEach(t => {
+    if (t.type === 'silent') {
+      // ""で囲んだもの: 語彙登録しない
+      return
+    }
+    if (t.type === 'phrase' && t.children && t.children.length > 0) {
+      // phraseの親は含めず、子を再帰的に展開
+      result.push(...getLeafTokens(t.children, t.text))
+    } else {
+      result.push({ ...t, parentText: parentText || null })
+    }
+  })
+  return result
+}
+
 function findClosing(str, start, open, close) {
   let depth = 0
   for (let i = start; i < str.length; i++) {
@@ -1267,13 +1705,13 @@ function findClosing(str, start, open, close) {
   return str.length - 1
 }
 
-function parseSentences(raw) {
-  const parts = raw.split('/').map(s => s.trim()).filter(s => s.length > 0)
-  return parts.length > 0 ? parts : [raw]
+function stripSymbols(str) {
+  return str.replace(/[\[\](){}\|"]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-function stripSymbols(str) {
-  return str.replace(/[\[\]()\/]/g, '').replace(/\s+/g, ' ').trim()
+// 単語の前後の句読点・疑問符・感嘆符を除去（語彙登録用）
+function stripPunctuation(text) {
+  return text.replace(/^[¿¡\s]+|[?!.,;:\s]+$/g, '').trim()
 }
 
 function buildLookupMap(data) {
@@ -1317,20 +1755,16 @@ async function saveVocabMeaning(spanish, meaning) {
 // ===== ステップインジケータークリック =====
 ;[1, 2, 3, 4].forEach(s => {
   document.getElementById(`step-${s}-indicator`).addEventListener('click', async () => {
-    // maxReachedStep 以下のステップのみ遷移可能（現在地も含む）
     if (s > maxReachedStep) return
-    if (s === currentStep) return  // 現在地は何もしない
+    if (s === currentStep) return
 
-    // 後退（または同一 maxReachedStep 内の任意移動）
     if (s < currentStep) {
-      // Step2以降に後退するときは audioItems が必要
       if (s === 2 && audioItems.length === 0) { await initStep2() }
       if (s === 3 && document.getElementById('timing-audio-blocks').children.length === 0) { await initStep3() }
       showStep(s)
       return
     }
 
-    // 前進の場合は各ステップの初期化を経由
     if (currentStep === 1 && s > 1) {
       const ok = await createMaterial()
       if (!ok) return
@@ -1356,7 +1790,6 @@ document.getElementById('btn-next-step').addEventListener('click', async () => {
     if (!ok) return
     await initStep2()
     showStep(2)
-
   } else if (currentStep === 2) {
     if (audioItems.length === 0) {
       document.getElementById('s2-error').textContent = 'Audioを1つ以上追加してください'
@@ -1364,7 +1797,6 @@ document.getElementById('btn-next-step').addEventListener('click', async () => {
     }
     await initStep3()
     showStep(3)
-
   } else if (currentStep === 3) {
     showStep(4)
   }
@@ -1376,7 +1808,7 @@ document.getElementById('btn-back-step').addEventListener('click', () => {
   else if (currentStep === 4) showStep(3)
 })
 
-// ===== 保存（素材として確定） =====
+// ===== 保存 =====
 document.getElementById('btn-publish').addEventListener('click', async () => {
   const btn = document.getElementById('btn-publish')
   btn.disabled = true
@@ -1425,23 +1857,18 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   await initStep1()
 
   if (materialId) {
-    // DBデータからどこまで進んでいるか判定して maxReachedStep を設定
     const { data: mat } = await db.from('audio_materials').select('status, youtube_id').eq('id', materialId).single()
     if (mat) {
       if (mat.status === 'saved') {
-        // 保存済み → 全ステップ解放
         maxReachedStep = 4
       } else {
-        // draft → Audioアイテムとセンテンスの有無でステップ判定
         const { data: items } = await db.from('audio_material_items')
           .select('id').eq('material_id', materialId).limit(1)
         if (items && items.length > 0) {
-          maxReachedStep = 2  // Step2まで到達済み
-          // Step3：YouTube IDがあるか、またはセンテンスに秒数が入っていれば到達済みとみなす
+          maxReachedStep = 2
           if (mat.youtube_id) {
             maxReachedStep = 3
           }
-          // Step4：全Audioにstart_secが設定されていればプレビュー到達済みとみなす
           const { data: allItems } = await db.from('audio_material_items')
             .select('start_sec').eq('material_id', materialId)
           if (allItems && allItems.length > 0 && allItems.every(i => i.start_sec != null)) {
