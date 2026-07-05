@@ -842,11 +842,14 @@ async function renderChunkBlocks(sent, block, chunks) {
             <button class="btn-del-meaning" style="background:none;border:1px solid var(--muted);color:var(--muted);
               font-size:0.6rem;padding:3px 6px;cursor:pointer;font-family:'Noto Serif JP',serif;flex-shrink:0">削除</button>
           `
+          // ===== 修正箇所: 意味を選択したら保存 + スペイン語プレビューを再描画 =====
           mRow.querySelector('.meaning-select-btn').addEventListener('click', async () => {
             currentSelected = m
             await saveVocabEntry(sent, token, m, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
             renderInlineMeanings()
+            renderS2SpanishPreview(sent, block)
           })
+          // ===== 修正箇所: 意味を編集したら保存 + スペイン語プレビューを再描画 =====
           mRow.querySelector('.btn-edit-meaning').addEventListener('click', async () => {
             const newVal = prompt('意味を編集してください', m)
             if (!newVal || newVal.trim() === m) return
@@ -861,8 +864,10 @@ async function renderChunkBlocks(sent, block, chunks) {
                 await saveVocabEntry(sent, token, trimmed, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
               }
               renderInlineMeanings()
+              renderS2SpanishPreview(sent, block)
             }
           })
+          // ===== 修正箇所: 削除した意味が選択中だった場合はDB側も更新 + スペイン語プレビューを再描画 =====
           mRow.querySelector('.btn-del-meaning').addEventListener('click', async () => {
             if (!confirm(`「${m}」を削除しますか？`)) return
             const { data: vm } = await db.from('vocab_meanings').select('*').eq('spanish', token.text).maybeSingle()
@@ -870,8 +875,13 @@ async function renderChunkBlocks(sent, block, chunks) {
               const updated = vm.meanings.filter(x => x !== m)
               await db.from('vocab_meanings').update({ meanings: updated }).eq('id', vm.id)
               currentMeanings.splice(mi, 1)
-              if (currentSelected === m) currentSelected = currentMeanings[0] || ''
+              const wasSelected = currentSelected === m
+              if (wasSelected) currentSelected = currentMeanings[0] || ''
+              if (wasSelected) {
+                await saveVocabEntry(sent, token, currentSelected, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+              }
               renderInlineMeanings()
+              renderS2SpanishPreview(sent, block)
             }
           })
           meaningArea.appendChild(mRow)
@@ -889,6 +899,7 @@ async function renderChunkBlocks(sent, block, chunks) {
         `
         const addInput = addRow.querySelector('input')
         const addBtn = addRow.querySelector('button')
+        // ===== 修正箇所: 新しい意味を追加したら保存 + スペイン語プレビューを再描画 =====
         async function doAdd() {
           const val = addInput.value.trim()
           if (!val || currentMeanings.includes(val)) return
@@ -898,6 +909,7 @@ async function renderChunkBlocks(sent, block, chunks) {
           await saveVocabEntry(sent, token, currentSelected, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
           addInput.value = ''
           renderInlineMeanings()
+          renderS2SpanishPreview(sent, block)
         }
         addBtn.addEventListener('click', doAdd)
         addInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd() } })
