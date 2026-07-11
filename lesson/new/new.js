@@ -39,7 +39,25 @@ const player = {
     else if (ytPlayer) ytPlayer.seekTo(sec, true)
   },
   playVideo() {
-    if (materialType === 'mp3') getAudioEl()?.play()
+    if (materialType === 'mp3') {
+      const a = getAudioEl()
+      if (a) {
+        const p = a.play()
+        // ブラウザの自動再生ポリシーで拒否された場合など、未処理のPromise拒否を防ぐ
+        if (p && typeof p.catch === 'function') {
+          p.catch(err => {
+            console.warn('MP3再生に失敗しました:', err)
+            const filenameEl = document.getElementById('mp3-filename')
+            if (filenameEl) {
+              const original = filenameEl.dataset.original || filenameEl.textContent
+              filenameEl.dataset.original = original
+              filenameEl.textContent = '⚠ 再生がブロックされました。音声プレイヤーの▶を一度押してから再度お試しください'
+              setTimeout(() => { filenameEl.textContent = original }, 4000)
+            }
+          })
+        }
+      }
+    }
     else if (ytPlayer) ytPlayer.playVideo()
   },
   pauseVideo() {
