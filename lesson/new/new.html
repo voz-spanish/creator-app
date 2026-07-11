@@ -82,12 +82,12 @@
                 <span class="type-desc">URL埋め込み再生</span>
               </span>
             </label>
-            <label class="type-option type-option--disabled">
-              <input type="radio" name="lesson-type" value="mp3" disabled />
+            <label class="type-option">
+              <input type="radio" name="lesson-type" value="mp3" />
               <span class="type-option-inner">
                 <span class="type-icon">♪</span>
                 <span class="type-name">音声ファイル</span>
-                <span class="type-desc">近日対応予定</span>
+                <span class="type-desc">MP3をアップロード</span>
               </span>
             </label>
           </div>
@@ -112,6 +112,8 @@
 
     <!-- Step 3: 音声紐付け -->
     <div class="step-content" id="step-3" style="display:none">
+
+      <!-- YouTube用ヘッダー -->
       <div class="youtube-header" id="youtube-header">
         <button class="btn-toggle-player" id="btn-toggle-player" aria-label="動画を折りたたむ">
           <span id="toggle-player-icon">▲</span>
@@ -125,6 +127,18 @@
         </div>
         <div class="audio-current-label" id="audio-current-label"></div>
       </div>
+
+      <!-- MP3用ヘッダー -->
+      <div class="mp3-header" id="mp3-header" style="display:none">
+        <div class="mp3-upload-wrap">
+          <input type="file" id="mp3-file-input" accept="audio/mp3,audio/mpeg" style="display:none" />
+          <button class="btn-load" id="btn-mp3-select">MP3を選択してアップロード</button>
+        </div>
+        <div class="mp3-filename" id="mp3-filename">未アップロード</div>
+        <audio id="mp3-player" controls></audio>
+        <div class="audio-current-label" id="audio-current-label-mp3"></div>
+      </div>
+
       <div class="audio-blocks" id="timing-audio-blocks"></div>
       <p class="error-msg" id="s3-error" style="padding:0 16px"></p>
     </div>
