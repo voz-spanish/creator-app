@@ -18,6 +18,50 @@ let audioItems = []                     // audio_material_items の配列
 let currentDictVocabInfo = null
 let maxReachedStep = 1   // これまでに到達した最大ステップ番号
 
+let materialType = 'youtube'   // 'youtube' | 'mp3'
+let audioFilePath = null       // mp3のstorageパス（material-audioバケット内）
+
+// ===== YouTube / MP3 共通プレイヤーインターフェース =====
+function getAudioEl() {
+  return document.getElementById('mp3-player')
+}
+
+const player = {
+  ready() {
+    return materialType === 'mp3' ? !!getAudioEl() : !!ytPlayer
+  },
+  getCurrentTime() {
+    if (materialType === 'mp3') return getAudioEl()?.currentTime || 0
+    return ytPlayer ? ytPlayer.getCurrentTime() : 0
+  },
+  seekTo(sec) {
+    if (materialType === 'mp3') { const a = getAudioEl(); if (a) a.currentTime = sec }
+    else if (ytPlayer) ytPlayer.seekTo(sec, true)
+  },
+  playVideo() {
+    if (materialType === 'mp3') getAudioEl()?.play()
+    else if (ytPlayer) ytPlayer.playVideo()
+  },
+  pauseVideo() {
+    if (materialType === 'mp3') getAudioEl()?.pause()
+    else if (ytPlayer) ytPlayer.pauseVideo()
+  }
+}
+
+function setupMp3Player(path) {
+  const audioEl = getAudioEl()
+  const filenameEl = document.getElementById('mp3-filename')
+  if (!audioEl || !filenameEl) return
+  if (!path) {
+    audioEl.removeAttribute('src')
+    filenameEl.textContent = '未アップロード'
+    return
+  }
+  const { data } = db.storage.from('material-audio').getPublicUrl(path)
+  audioEl.src = data.publicUrl
+  filenameEl.textContent = decodeURIComponent(path.split('/').pop())
+}
+
 // ===== YouTube IFrame API =====
 window.onYouTubeIframeAPIReady = () => {
   ytReady = true
@@ -61,11 +105,11 @@ function showStep(step) {
   else if (step === 2) nextBtn.textContent = '音声紐付けへ →'
   else if (step === 3) nextBtn.textContent = 'プレビューへ →'
 
-  if (step === 3) loadYouTubeAPI()
+  if (step === 3 && materialType === 'youtube') loadYouTubeAPI()
   if (step === 4) renderPreview()
 
   const toggleBtn = document.getElementById('btn-toggle-player')
-  if (toggleBtn) toggleBtn.style.display = step === 3 ? 'flex' : 'none'
+  if (toggleBtn) toggleBtn.style.display = (step === 3 && materialType === 'youtube') ? 'flex' : 'none'
 }
 
 // ===== Step 1 =====
@@ -76,6 +120,7 @@ async function initStep1() {
       document.getElementById('s1-title').value = data.title || ''
       const radios = document.querySelectorAll('input[name="lesson-type"]')
       radios.forEach(r => { if (r.value === data.type) r.checked = true })
+      materialType = data.type || 'youtube'
     }
   }
 }
@@ -88,6 +133,7 @@ async function createMaterial() {
     return false
   }
   document.getElementById('s1-error').textContent = ''
+  materialType = type
 
   if (!materialId) {
     const session = await db.auth.getSession()
@@ -1099,8 +1145,18 @@ async function initStep3() {
   const container = document.getElementById('timing-audio-blocks')
   container.innerHTML = ''
 
-  const { data: material } = await db.from('audio_materials').select('youtube_id').eq('id', materialId).single()
-  if (material?.youtube_id) document.getElementById('yt-id-input').value = material.youtube_id
+  const { data: material } = await db.from('audio_materials')
+    .select('youtube_id, audio_file_path').eq('id', materialId).single()
+
+  document.getElementById('youtube-header').style.display = materialType === 'youtube' ? 'block' : 'none'
+  document.getElementById('mp3-header').style.display = materialType === 'mp3' ? 'block' : 'none'
+
+  if (materialType === 'youtube') {
+    if (material?.youtube_id) document.getElementById('yt-id-input').value = material.youtube_id
+  } else {
+    audioFilePath = material?.audio_file_path || null
+    setupMp3Player(audioFilePath)
+  }
 
   audioItems.forEach((item, idx) => renderTimingAudioBlock(idx))
   updateAudioCurrentLabel()
@@ -1113,6 +1169,47 @@ document.getElementById('btn-load-yt').addEventListener('click', async () => {
   await db.from('audio_materials').update({
     youtube_id: id, updated_at: new Date().toISOString()
   }).eq('id', materialId)
+})
+
+// ===== MP3アップロード =====
+document.getElementById('btn-mp3-select').addEventListener('click', () => {
+  document.getElementById('mp3-file-input').click()
+})
+
+document.getElementById('mp3-file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  const filenameEl = document.getElementById('mp3-filename')
+  filenameEl.textContent = 'アップロード中...'
+
+  const session = await db.auth.getSession()
+  const userId = session.data.session.user.id
+  const ext = (file.name.split('.').pop() || 'mp3').toLowerCase()
+  const path = `${userId}/${materialId}/${Date.now()}.${ext}`
+
+  const { error } = await db.storage.from('material-audio').upload(path, file, {
+    upsert: true,
+    contentType: file.type || 'audio/mpeg'
+  })
+
+  if (error) {
+    filenameEl.textContent = 'アップロードに失敗しました'
+    console.error(error)
+    return
+  }
+
+  // 古いファイルがあれば削除
+  if (audioFilePath && audioFilePath !== path) {
+    await db.storage.from('material-audio').remove([audioFilePath])
+  }
+
+  audioFilePath = path
+  await db.from('audio_materials').update({
+    audio_file_path: path, updated_at: new Date().toISOString()
+  }).eq('id', materialId)
+
+  setupMp3Player(path)
+  e.target.value = ''
 })
 
 function renderTimingAudioBlock(idx) {
@@ -1173,29 +1270,29 @@ function renderTimingAudioBlock(idx) {
       if (!sentBlock) return
 
       sentBlock.querySelector('.sent-mark-start').addEventListener('click', async () => {
-        if (!ytPlayer) return
-        const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(1))
+        if (!player.ready()) return
+        const sec = parseFloat(player.getCurrentTime().toFixed(1))
         sentBlock.querySelector('.sent-start').value = sec
         audioItems[idx].sentences[si].start_sec = sec
         await db.from('audio_sentences').update({ start_sec: sec }).eq('id', sent.id)
       })
 
       sentBlock.querySelector('.sent-mark-end').addEventListener('click', async () => {
-        if (!ytPlayer) return
-        const sec = parseFloat(ytPlayer.getCurrentTime().toFixed(1))
+        if (!player.ready()) return
+        const sec = parseFloat(player.getCurrentTime().toFixed(1))
         sentBlock.querySelector('.sent-end').value = sec
         audioItems[idx].sentences[si].end_sec = sec
         await db.from('audio_sentences').update({ end_sec: sec }).eq('id', sent.id)
       })
 
       sentBlock.querySelector('.sent-play').addEventListener('click', () => {
-        if (!ytPlayer) return
+        if (!player.ready()) return
         const start = parseFloat(sentBlock.querySelector('.sent-start').value) || 0
         const end = parseFloat(sentBlock.querySelector('.sent-end').value) || null
         if (!start && start !== 0) return
-        ytPlayer.seekTo(start, true)
-        ytPlayer.playVideo()
-        if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
+        player.seekTo(start)
+        player.playVideo()
+        if (end) setTimeout(() => player.pauseVideo(), (end - start) * 1000)
       })
 
       sentBlock.querySelector('.sent-start').addEventListener('change', async (e) => {
@@ -1238,6 +1335,7 @@ function updateTimingBlockHeader(idx) {
 
 function updateAudioCurrentLabel() {
   const label = document.getElementById('audio-current-label')
+  if (!label) return
   if (audioItems.length === 0) { label.textContent = ''; return }
   const last = audioItems[audioItems.length - 1]
   label.textContent = `▶ Audio ${last.audio_number}  ${formatSec(last.start_sec || 0)} — ${last.end_sec != null ? formatSec(last.end_sec) : '未設定'}`
@@ -1249,15 +1347,15 @@ let sequentialTimer = null  // 再生中のタイマー（停止に使う）
 function playSequential(sents, index) {
   // 前のタイマーをクリア
   if (sequentialTimer) { clearTimeout(sequentialTimer); sequentialTimer = null }
-  if (!ytPlayer || index >= sents.length) return
+  if (!player.ready() || index >= sents.length) return
 
   const sent = sents[index]
   const start = sent.start_sec
   const end = sent.end_sec
   const duration = (end - start) * 1000
 
-  ytPlayer.seekTo(start, true)
-  ytPlayer.playVideo()
+  player.seekTo(start)
+  player.playVideo()
 
   sequentialTimer = setTimeout(() => {
     if (index + 1 < sents.length) {
@@ -1265,7 +1363,7 @@ function playSequential(sents, index) {
       playSequential(sents, index + 1)
     } else {
       // 全て終了
-      ytPlayer.pauseVideo()
+      player.pauseVideo()
       sequentialTimer = null
     }
   }, duration)
@@ -1428,7 +1526,7 @@ async function renderPreview() {
       const audioPlayBtn = block.querySelector('.preview-audio-play')
       if (audioPlayBtn) {
         audioPlayBtn.addEventListener('click', () => {
-          if (!ytPlayer) return
+          if (!player.ready()) return
           // 秒数設定済みのセンテンスだけ順番に再生
           const playableSents = item.sentences.filter(s =>
             s.start_sec != null && s.end_sec != null
@@ -1503,12 +1601,12 @@ async function renderPreview() {
         sentWrap.appendChild(sentBlock)
 
         sentBlock.querySelector('.preview-play').addEventListener('click', () => {
-          if (!ytPlayer) return
+          if (!player.ready()) return
           const start = parseFloat(sentBlock.querySelector('.preview-play').dataset.start) || 0
           const end = parseFloat(sentBlock.querySelector('.preview-play').dataset.end) || null
-          ytPlayer.seekTo(start, true)
-          ytPlayer.playVideo()
-          if (end) setTimeout(() => ytPlayer.pauseVideo(), (end - start) * 1000)
+          player.seekTo(start)
+          player.playVideo()
+          if (end) setTimeout(() => player.pauseVideo(), (end - start) * 1000)
         })
 
         const bubble = sentBlock.querySelector(`#bubble-${sent.id}`)
@@ -1957,7 +2055,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
   await initStep1()
 
   if (materialId) {
-    const { data: mat } = await db.from('audio_materials').select('status, youtube_id').eq('id', materialId).single()
+    const { data: mat } = await db.from('audio_materials')
+      .select('status, youtube_id, audio_file_path').eq('id', materialId).single()
     if (mat) {
       if (mat.status === 'saved') {
         maxReachedStep = 4
@@ -1966,7 +2065,8 @@ document.getElementById('logout-btn').addEventListener('click', async () => {
           .select('id').eq('material_id', materialId).limit(1)
         if (items && items.length > 0) {
           maxReachedStep = 2
-          if (mat.youtube_id) {
+          const hasMedia = materialType === 'mp3' ? !!mat.audio_file_path : !!mat.youtube_id
+          if (hasMedia) {
             maxReachedStep = 3
           }
           const { data: allItems } = await db.from('audio_material_items')
