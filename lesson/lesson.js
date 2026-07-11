@@ -68,7 +68,8 @@ function renderList(listId, emptyId, items, type) {
     ) || 0
 
     const updatedStr = formatDatetime(material.updated_at)
-    const typeLabel  = material.type === 'youtube' ? 'YouTube' : material.type
+    const typeLabel  = material.type === 'youtube' ? 'YouTube'
+      : material.type === 'mp3' ? 'MP3' : material.type
 
     if (type === 'draft') {
       li.innerHTML = `
@@ -108,6 +109,13 @@ function renderList(listId, emptyId, items, type) {
 // ===== 削除 =====
 async function deleteMaterial(id) {
   if (!confirm('この素材を削除しますか？\n（関連するAudio・Sentenceもすべて削除されます）')) return
+
+  // アップロード済みMP3があればStorageからも削除
+  const { data: mat } = await db.from('audio_materials')
+    .select('audio_file_path').eq('id', id).single()
+  if (mat?.audio_file_path) {
+    await db.storage.from('material-audio').remove([mat.audio_file_path])
+  }
 
   // 関連データを順に削除
   const { data: items } = await db
