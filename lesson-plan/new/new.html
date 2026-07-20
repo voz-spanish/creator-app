@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>レッスンプラン作成</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Noto+Serif+JP:wght@300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="new.css">
+</head>
+<body>
+
+  <header class="header">
+    <span class="header-logo">Lesson</span>
+    <button class="burger-btn" id="burger-btn" aria-label="メニュー">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <nav class="drawer" id="drawer">
+    <ul class="drawer-nav">
+      <li><a href="../../home/home.html">ホーム</a></li>
+      <li class="drawer-divider"></li>
+      <li><a href="../../lesson/lesson.html">レッスン素材</a></li>
+      <li><a href="../../user-lesson-plan/lesson-plan.html">レッスンプラン</a></li>
+      <li><a href="../../flashcard/flashcard.html">フラッシュカード</a></li>
+      <li><a href="../../dictionary/dictionary.html">辞書</a></li>
+      <li><a href="../../question/question.html">質問</a></li>
+      <li><a href="../../announce/announce.html">アナウンス</a></li>
+    </ul>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </nav>
+
+  <!-- ステップインジケーター -->
+  <div class="step-bar">
+    <div class="step-item" id="step-1-indicator">
+      <div class="step-num">1</div>
+      <div class="step-label">基本設定</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-item" id="step-2-indicator">
+      <div class="step-num">2</div>
+      <div class="step-label">レッスン選択</div>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step-item" id="step-3-indicator">
+      <div class="step-num">3</div>
+      <div class="step-label">並び替え・保存</div>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <!-- Step 1: 基本設定 -->
+    <div class="step-content" id="step-1">
+      <div class="form-wrap">
+        <div class="page-header">
+          <a class="back-link" href="../lesson-plan.html">← 一覧に戻る</a>
+          <h1 class="page-title">レッスンプランを作成する</h1>
+        </div>
+
+        <div class="section-card">
+          <div class="field">
+            <label>タイトル</label>
+            <input type="text" id="s1-title" placeholder="レッスンプランのタイトルを入力" />
+          </div>
+        </div>
+
+        <p class="error-msg" id="s1-error"></p>
+      </div>
+    </div>
+
+    <!-- Step 2: レッスン選択 -->
+    <div class="step-content" id="step-2" style="display:none">
+      <div class="form-wrap" style="max-width:100%">
+        <div class="page-header" style="padding:0 4px 8px">
+          <h2 class="page-title" style="font-size:1.4rem">レッスンを選択</h2>
+          <p class="input-hint-text">組み込むレッスンにチェックを入れてください。▽でセンテンス単位の選択もできます</p>
+        </div>
+
+        <div class="filter-top-inline">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="s2-search" placeholder="タイトルで検索" />
+        </div>
+
+        <div id="lesson-select-list"></div>
+        <p class="empty-sub" id="s2-empty" style="display:none">作成済のレッスンがありません</p>
+        <p class="error-msg" id="s2-error"></p>
+      </div>
+    </div>
+
+    <!-- Step 3: 並び替え・保存 -->
+    <div class="step-content" id="step-3" style="display:none">
+      <div class="form-wrap" style="max-width:100%">
+        <div class="page-header" style="padding:0 4px 8px">
+          <h2 class="page-title" style="font-size:1.4rem">並び替え・確認</h2>
+          <p class="input-hint-text">番号横の ▲▼ でレッスンの順番を入れ替えられます</p>
+        </div>
+
+        <div id="order-list"></div>
+
+        <div class="section-card flashcard-config">
+          <div class="section-card-title">フラッシュカード（全レッスン終了後に自動設置）</div>
+          <label class="checkbox-row">
+            <input type="checkbox" id="fc-es-jp" />
+            <span>ES → JP モードを設置する</span>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="fc-jp-es" />
+            <span>JP → ES モードを設置する</span>
+          </label>
+        </div>
+
+        <p class="error-msg" id="s3-error"></p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer-fixed">
+    <button class="btn-back-step" id="btn-back-step" style="display:none">← 戻る</button>
+    <button class="btn-next-step" id="btn-next-step">作成をはじめる →</button>
+    <button class="btn-publish" id="btn-publish" style="display:none">保存する</button>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="new.js"></script>
+</body>
+</html>
