@@ -14,7 +14,7 @@ let allPlans = []
 // ===== データ取得 =====
 async function fetchAll() {
   const { data, error } = await db
-    .from('lesson_plans')
+    .from('lesson_plan_sets')
     .select(`
       *,
       lesson_plan_items ( id )
@@ -97,7 +97,7 @@ function renderList(listId, emptyId, items, type) {
 async function deletePlan(id) {
   if (!confirm('このレッスンプランを削除しますか？\n（組み込まれているレッスンの選択情報もすべて削除されます）')) return
 
-  const { error } = await db.from('lesson_plans').delete().eq('id', id)
+  const { error } = await db.from('lesson_plan_sets').delete().eq('id', id)
   if (error) {
     console.error(error)
     alert('削除に失敗しました')
