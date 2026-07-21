@@ -75,7 +75,7 @@ async function loadExistingPlan() {
   if (!planId) return
 
   const { data: plan, error } = await db
-    .from('lesson_plans')
+    .from('lesson_plan_sets')
     .select('*')
     .eq('id', planId)
     .single()
@@ -160,7 +160,7 @@ async function handleStep1Next() {
 
   if (!planId) {
     const { data, error } = await db
-      .from('lesson_plans')
+      .from('lesson_plan_sets')
       .insert({ title: planTitle, status: 'draft' })
       .select()
       .single()
@@ -174,7 +174,7 @@ async function handleStep1Next() {
     window.history.replaceState({}, '', `${window.location.pathname}?id=${planId}`)
   } else {
     const { error } = await db
-      .from('lesson_plans')
+      .from('lesson_plan_sets')
       .update({ title: planTitle, updated_at: new Date().toISOString() })
       .eq('id', planId)
 
@@ -453,7 +453,7 @@ async function handlePublish() {
   }
 
   const { error } = await db
-    .from('lesson_plans')
+    .from('lesson_plan_sets')
     .update({
       title: planTitle,
       status: 'saved',
