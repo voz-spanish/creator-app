@@ -1222,8 +1222,17 @@ document.getElementById('mp3-file-input').addEventListener('change', async (e) =
   }
 
   audioFilePath = path
+
+  // 公開URLを生成し、audio_file_path と併せて audio_url にも保存する。
+  // （ユーザー側の再生画面は audio_url を参照しているため、
+  //   ここで保存し忘れると管理画面では再生できるのにユーザー側では
+  //   無音になる、という不具合が起きる）
+  const { data: publicUrlData } = db.storage.from('material-audio').getPublicUrl(path)
+
   await db.from('audio_materials').update({
-    audio_file_path: path, updated_at: new Date().toISOString()
+    audio_file_path: path,
+    audio_url: publicUrlData.publicUrl,
+    updated_at: new Date().toISOString()
   }).eq('id', materialId)
 
   setupMp3Player(path)
