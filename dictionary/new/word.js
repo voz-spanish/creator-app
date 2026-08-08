@@ -11,6 +11,7 @@ async function checkAuth() {
 
 const params = new URLSearchParams(location.search)
 const editId = params.get('id')
+let existingCardId = null
 
 let allPOS = []
 let allSets = []
@@ -775,20 +776,31 @@ document.getElementById('btn-save').addEventListener('click', async () => {
       await db.from('lookup_forms').insert(lookupForms)
     }
 
-    // カード登録
-    if (!editId && document.getElementById('toggle-card').checked) {
+    // カード登録／更新（新規登録時・既存エントリの編集時どちらでも可）
+    if (document.getElementById('toggle-card').checked) {
       const tags = document.getElementById('card-tags').value.split(/\s+/).filter(t => t)
-      const { data: card, error: cardError } = await db.from('cards').insert({
+      const cardPayload = {
         spanish, japanese,
         example: document.getElementById('input-example').value,
         hint: document.getElementById('input-hint').value,
         tags,
         scope: document.getElementById('card-scope').value,
         user_id: userId
-      }).select().single()
+      }
+
+      let card, cardError
+      if (existingCardId) {
+        ({ data: card, error: cardError } = await db.from('cards')
+          .update(cardPayload).eq('id', existingCardId).select().single())
+      } else {
+        ({ data: card, error: cardError } = await db.from('cards')
+          .insert(cardPayload).select().single())
+      }
 
       if (!cardError) {
-        await db.from('dictionary_entries').update({ card_id: card.id }).eq('id', entryId)
+        if (!existingCardId) {
+          await db.from('dictionary_entries').update({ card_id: card.id }).eq('id', entryId)
+        }
         const checked = document.querySelectorAll('#set-checkboxes input:checked')
         for (const cb of checked) {
           await db.from('flashcard_set_cards').upsert({
@@ -839,6 +851,24 @@ async function loadEditData() {
       document.getElementById('pos-select').value = pos.name
       selectedPOS = pos.name
       renderPOSFields(pos.name)
+    }
+  }
+
+  // すでにフラッシュカード化されている場合はカード内容を復元
+  if (data.card_id) {
+    existingCardId = data.card_id
+    const { data: card } = await db.from('cards').select('*').eq('id', data.card_id).maybeSingle()
+    if (card) {
+      document.getElementById('toggle-card').checked = true
+      document.getElementById('card-fields').style.display = 'block'
+      document.getElementById('card-tags').value = (card.tags || []).join(' ')
+      document.getElementById('card-scope').value = card.scope || 'plus'
+      const setsRes = await db.from('flashcard_set_cards').select('set_id').eq('card_id', card.id).eq('is_manual', true)
+      const setIds = (setsRes.data || []).map(s => s.set_id)
+      setIds.forEach(id => {
+        const cb = document.getElementById(`set-${id}`)
+        if (cb) cb.checked = true
+      })
     }
   }
 }
