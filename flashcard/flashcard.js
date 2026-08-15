@@ -181,6 +181,78 @@ async function deleteCard(id) {
   renderCards()
 }
 
+// スペイン語・日本語が完全一致するカードを1枚に統合する
+async function mergeDuplicateCards() {
+  const btn = document.getElementById('btn-merge-dup-cards')
+  const original = btn.textContent
+  btn.disabled = true
+  btn.textContent = '確認中...'
+
+  try {
+    const groups = {}
+    allCards.forEach(c => {
+      const key = `${c.spanish || ''}|${c.japanese || ''}`
+      if (!groups[key]) groups[key] = []
+      groups[key].push(c)
+    })
+    const dupGroups = Object.values(groups).filter(g => g.length > 1)
+
+    if (dupGroups.length === 0) {
+      alert('重複はありませんでした')
+      return
+    }
+    if (!confirm(`スペイン語・日本語が完全一致する重複が${dupGroups.length}件見つかりました。1枚に統合しますか？`)) return
+
+    btn.textContent = '統合中...'
+
+    // どのカードが辞書エントリから参照されているか把握しておく（参照されている方を優先して残す）
+    const { data: linkedEntries } = await db.from('dictionary_entries').select('id, card_id').not('card_id', 'is', null)
+    const cardIdToEntry = {}
+    ;(linkedEntries || []).forEach(e => { cardIdToEntry[e.card_id] = e.id })
+
+    let mergedCount = 0
+
+    for (const group of dupGroups) {
+      group.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      const keep = group.find(c => cardIdToEntry[c.id]) || group[0]
+      const dups = group.filter(c => c.id !== keep.id)
+
+      for (const dup of dups) {
+        // フラッシュカードへの登録をkeep側へ付け替え
+        const { data: setLinks } = await db.from('flashcard_set_cards').select('*').eq('card_id', dup.id)
+        for (const link of (setLinks || [])) {
+          await db.from('flashcard_set_cards').upsert({
+            set_id: link.set_id,
+            card_id: keep.id,
+            is_manual: link.is_manual,
+            excluded: link.excluded
+          }, { onConflict: 'set_id,card_id' })
+        }
+        await db.from('flashcard_set_cards').delete().eq('card_id', dup.id)
+
+        // 辞書エントリからの参照をkeep側へ付け替え
+        if (cardIdToEntry[dup.id]) {
+          await db.from('dictionary_entries').update({ card_id: keep.id }).eq('card_id', dup.id)
+        }
+
+        await db.from('cards').delete().eq('id', dup.id)
+        mergedCount++
+      }
+    }
+
+    alert(`${mergedCount}件を統合しました`)
+    await fetchAll()
+    populateSetSelect()
+    renderCards()
+  } catch (err) {
+    console.error('カード重複統合エラー:', err)
+    alert('統合中にエラーが発生しました')
+  } finally {
+    btn.disabled = false
+    btn.textContent = original
+  }
+}
+
 async function deleteSet(id) {
   if (!confirm('このフラッシュカードを削除しますか？')) return
   await db.from('flashcard_set_cards').delete().eq('set_id', id)
@@ -407,6 +479,8 @@ document.getElementById('btn-new-card').addEventListener('click', () => {
 document.getElementById('btn-new-set').addEventListener('click', () => {
   window.location.href = 'new/new.html?mode=set'
 })
+
+document.getElementById('btn-merge-dup-cards').addEventListener('click', mergeDuplicateCards)
 
 document.getElementById('popup-flip-close').addEventListener('click', () => closePopup('popup-flip-overlay'))
 document.getElementById('popup-edit-card-close').addEventListener('click', () => closePopup('popup-edit-card-overlay'))
