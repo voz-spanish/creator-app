@@ -211,6 +211,91 @@ async function deleteEntry(id) {
   applyFilter()
 }
 
+// スペイン語・日本語・フォーマットが完全一致するエントリを1件に統合する
+async function mergeDuplicateEntries() {
+  const btn = document.getElementById('btn-merge-dup')
+  const original = btn.textContent
+  btn.disabled = true
+  btn.textContent = '確認中...'
+
+  try {
+    const groups = {}
+    allEntries.forEach(e => {
+      const key = `${e.format_id || ''}|${e.spanish || ''}|${e.japanese || ''}`
+      if (!groups[key]) groups[key] = []
+      groups[key].push(e)
+    })
+    const dupGroups = Object.values(groups).filter(g => g.length > 1)
+
+    if (dupGroups.length === 0) {
+      alert('重複はありませんでした')
+      return
+    }
+    if (!confirm(`スペイン語・日本語が完全一致する重複が${dupGroups.length}件見つかりました。1件に統合しますか？`)) return
+
+    btn.textContent = '統合中...'
+    let mergedCount = 0
+
+    for (const group of dupGroups) {
+      group.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      // カードに紐付いているものを優先して残す（なければ一番古いもの）
+      const keep = group.find(e => e.card_id) || group[0]
+      const dups = group.filter(e => e.id !== keep.id)
+
+      for (const dup of dups) {
+        // lookup_forms を統合（同じformがkeep側になければ移行、あれば重複分を削除）
+        const { data: dupForms } = await db.from('lookup_forms').select('*').eq('entry_id', dup.id)
+        const { data: keepForms } = await db.from('lookup_forms').select('form').eq('entry_id', keep.id)
+        const keepFormSet = new Set((keepForms || []).map(f => f.form))
+        for (const f of (dupForms || [])) {
+          if (keepFormSet.has(f.form)) {
+            await db.from('lookup_forms').delete().eq('id', f.id)
+          } else {
+            await db.from('lookup_forms').update({ entry_id: keep.id }).eq('id', f.id)
+            keepFormSet.add(f.form)
+          }
+        }
+
+        // レッスン側の紐付けをkeepへ付け替え
+        await db.from('audio_sentence_vocab').update({ dictionary_entry_id: keep.id }).eq('dictionary_entry_id', dup.id)
+
+        // フラッシュカードの統合
+        if (dup.card_id && dup.card_id !== keep.card_id) {
+          if (!keep.card_id) {
+            await db.from('dictionary_entries').update({ card_id: dup.card_id }).eq('id', keep.id)
+            keep.card_id = dup.card_id
+          } else {
+            const { data: setLinks } = await db.from('flashcard_set_cards').select('*').eq('card_id', dup.card_id)
+            for (const link of (setLinks || [])) {
+              await db.from('flashcard_set_cards').upsert({
+                set_id: link.set_id,
+                card_id: keep.card_id,
+                is_manual: link.is_manual,
+                excluded: link.excluded
+              }, { onConflict: 'set_id,card_id' })
+            }
+            await db.from('flashcard_set_cards').delete().eq('card_id', dup.card_id)
+            await db.from('cards').delete().eq('id', dup.card_id)
+          }
+        }
+
+        await db.from('dictionary_entries').delete().eq('id', dup.id)
+        mergedCount++
+      }
+    }
+
+    alert(`${mergedCount}件を統合しました`)
+    await fetchAll()
+    applyFilter()
+  } catch (err) {
+    console.error('重複統合エラー:', err)
+    alert('統合中にエラーが発生しました')
+  } finally {
+    btn.disabled = false
+    btn.textContent = original
+  }
+}
+
 function applyFilter() {
   const q = document.getElementById('search-input').value.trim().toLowerCase()
   const formatId = document.getElementById('filter-format').value
@@ -243,6 +328,8 @@ document.getElementById('filter-toggle-btn').addEventListener('click', () => {
 document.getElementById('btn-add').addEventListener('click', () => {
   window.location.href = 'new/new.html'
 })
+
+document.getElementById('btn-merge-dup').addEventListener('click', mergeDuplicateEntries)
 
 document.getElementById('popup-detail-close').addEventListener('click', () => {
   closePopup('popup-detail-overlay')
