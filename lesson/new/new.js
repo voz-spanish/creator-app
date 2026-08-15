@@ -15,7 +15,6 @@ let currentStep = 1
 let ytPlayer = null
 let ytReady = false
 let audioItems = []                     // audio_material_items の配列
-let currentDictVocabInfo = null
 let maxReachedStep = 1   // これまでに到達した最大ステップ番号
 
 let materialType = 'youtube'   // 'youtube' | 'mp3'
@@ -742,11 +741,16 @@ async function renderChunkBlocks(sent, block, chunks) {
   }
 
   // japanese_chunkをidで直接updateする（insert/deleteしない）
-  async function saveChunkJp(chunkId, value) {
-    if (!chunkId) return
+  // フレーズ・表現チャンクは、訳を保存するたびに辞書＋フラッシュカードへも自動反映する
+  async function saveChunkJp(chunk, value) {
+    if (!chunk.id) return
     await db.from('audio_sentence_chunks')
       .update({ japanese_chunk: value })
-      .eq('id', chunkId)
+      .eq('id', chunk.id)
+    if ((chunk.chunk_type === 'phrase' || chunk.chunk_type === 'expression') && value) {
+      const formatName = chunk.chunk_type === 'phrase' ? 'フレーズ' : '表現'
+      await autoSyncToDictionary(chunk.spanish_chunk, [value], formatName)
+    }
   }
 
   for (let ci = 0; ci < chunks.length; ci++) {
@@ -815,18 +819,17 @@ async function renderChunkBlocks(sent, block, chunks) {
     `
 
     const jpInput = chunkEl.querySelector('.chunk-jp-input')
-    const chunkId = chunk.id || null
     let chunkSaveTimer = null
     jpInput.addEventListener('input', () => {
       updateLiteralPreview()
       renderS2ChunkLiteral(sent, block, chunks)
       // 1秒後に自動保存（debounce）
       clearTimeout(chunkSaveTimer)
-      chunkSaveTimer = setTimeout(() => saveChunkJp(chunkId, jpInput.value.trim()), 1000)
+      chunkSaveTimer = setTimeout(() => saveChunkJp(chunk, jpInput.value.trim()), 1000)
     })
     jpInput.addEventListener('blur', () => {
       clearTimeout(chunkSaveTimer)
-      saveChunkJp(chunkId, jpInput.value.trim())
+      saveChunkJp(chunk, jpInput.value.trim())
     })
 
     chunkEl.querySelector('.chunk-vocab-toggle').addEventListener('click', (e) => {
@@ -846,11 +849,12 @@ async function renderChunkBlocks(sent, block, chunks) {
       const rawMs = meaningsMap[token.text] || []
       const ms = [...new Set(rawMs)]
       const selectedMeaning = existing?.selected_meaning || ms[0] || ''
-      let dictMatch = checkDictMatch(token.text, lookupMap)
-      let dictStatus = dictMatch ? 'registered' : 'unregistered'
+      const dictMatch = checkDictMatch(token.text, lookupMap)
+      let dictEntryId = existing?.dictionary_entry_id || dictMatch?.entry_id || null
       const tokTypeLabel = token.type === 'phrase' ? 'フレーズ'
         : token.type === 'expression' ? '表現' : '単語'
       const tokTypeClass = `vocab-type-${token.type === 'expression' ? 'expression' : 'word'}`
+      const tokFormatName = token.type === 'expression' ? '表現' : '単語'
 
       const vocabRow = document.createElement('div')
       vocabRow.style.cssText = `
@@ -869,8 +873,9 @@ async function renderChunkBlocks(sent, block, chunks) {
             <span style="font-size:0.85rem">${token.text}</span>
             ${token.parentText ? `<span style="font-size:0.62rem;color:var(--muted)">（${token.parentText}内）</span>` : ''}
           </div>
-          <button class="btn-dict ${dictStatus}" style="font-size:0.62rem;flex-shrink:0">
-            ${dictStatus === 'registered' ? '確認・編集' : '辞書登録'}
+          <button class="btn-dict ${dictEntryId ? 'registered' : 'unregistered'}" ${dictEntryId ? '' : 'disabled'}
+            style="font-size:0.62rem;flex-shrink:0">
+            ${dictEntryId ? '辞書で見る' : '未登録'}
           </button>
         </div>
         <div class="vocab-meaning-area" style="display:flex;flex-direction:column;gap:4px"></div>
@@ -880,19 +885,30 @@ async function renderChunkBlocks(sent, block, chunks) {
       const currentMeanings = [...ms]
       let currentSelected = selectedMeaning
 
-      vocabRow.querySelector('.btn-dict').addEventListener('click', () => {
-        currentDictVocabInfo = { token, sentId: sent.id, selectedMeaning: currentSelected }
-        openDictPopup(token.text, dictStatus, dictMatch?.entry_id || null, currentSelected, (newEntryId) => {
-          // 登録・紐付け完了時にこの語彙行のバッジをその場で更新
-          dictMatch = { entry_id: newEntryId }
-          dictStatus = 'registered'
-          const btn = vocabRow.querySelector('.btn-dict')
-          if (btn) {
-            btn.classList.remove('unregistered')
-            btn.classList.add('registered')
-            btn.textContent = '確認・編集'
-          }
+      // 意味が登録済みなら辞書に自動反映（既に登録済みの語彙にも整合を取る）
+      if (currentMeanings.length > 0) {
+        autoSyncToDictionary(token.text, currentMeanings, tokFormatName).then(id => {
+          if (id) { dictEntryId = id; updateDictBtn() }
         })
+      }
+
+      const dictBtn = vocabRow.querySelector('.btn-dict')
+      function updateDictBtn() {
+        if (dictEntryId) {
+          dictBtn.disabled = false
+          dictBtn.classList.remove('unregistered')
+          dictBtn.classList.add('registered')
+          dictBtn.textContent = '辞書で見る'
+        } else {
+          dictBtn.disabled = true
+          dictBtn.classList.remove('registered')
+          dictBtn.classList.add('unregistered')
+          dictBtn.textContent = '未登録'
+        }
+      }
+      dictBtn.addEventListener('click', () => {
+        if (!dictEntryId) return
+        window.open(`../../dictionary/new/word.html?id=${dictEntryId}`, '_blank')
       })
 
       function renderInlineMeanings() {
@@ -919,7 +935,7 @@ async function renderChunkBlocks(sent, block, chunks) {
           // ===== 修正箇所: 意味を選択したら保存 + スペイン語プレビューを再描画 =====
           mRow.querySelector('.meaning-select-btn').addEventListener('click', async () => {
             currentSelected = m
-            await saveVocabEntry(sent, token, m, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+            await saveVocabEntry(sent, token, m, dictEntryId)
             renderInlineMeanings()
             renderS2SpanishPreview(sent, block)
           })
@@ -933,10 +949,12 @@ async function renderChunkBlocks(sent, block, chunks) {
               const updated = [...new Set(vm.meanings.map(x => x === m ? trimmed : x))]
               await db.from('vocab_meanings').update({ meanings: updated }).eq('id', vm.id)
               currentMeanings[mi] = trimmed
+              dictEntryId = await autoSyncToDictionary(token.text, currentMeanings, tokFormatName)
+              updateDictBtn()
               if (currentSelected === m) {
                 currentSelected = trimmed
-                await saveVocabEntry(sent, token, trimmed, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
               }
+              await saveVocabEntry(sent, token, currentSelected, dictEntryId)
               renderInlineMeanings()
               renderS2SpanishPreview(sent, block)
             }
@@ -949,10 +967,14 @@ async function renderChunkBlocks(sent, block, chunks) {
               const updated = vm.meanings.filter(x => x !== m)
               await db.from('vocab_meanings').update({ meanings: updated }).eq('id', vm.id)
               currentMeanings.splice(mi, 1)
+              if (currentMeanings.length > 0) {
+                dictEntryId = await autoSyncToDictionary(token.text, currentMeanings, tokFormatName)
+                updateDictBtn()
+              }
               const wasSelected = currentSelected === m
               if (wasSelected) currentSelected = currentMeanings[0] || ''
               if (wasSelected) {
-                await saveVocabEntry(sent, token, currentSelected, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+                await saveVocabEntry(sent, token, currentSelected, dictEntryId)
               }
               renderInlineMeanings()
               renderS2SpanishPreview(sent, block)
@@ -980,7 +1002,10 @@ async function renderChunkBlocks(sent, block, chunks) {
           await saveVocabMeaning(token.text, val)
           currentMeanings.push(val)
           if (!currentSelected) currentSelected = val
-          await saveVocabEntry(sent, token, currentSelected, dictMatch?.entry_id || existing?.dictionary_entry_id || null)
+          // 辞書＋フラッシュカードへ自動登録／更新（これが登録のトリガーになる）
+          dictEntryId = await autoSyncToDictionary(token.text, currentMeanings, tokFormatName)
+          updateDictBtn()
+          await saveVocabEntry(sent, token, currentSelected, dictEntryId)
           addInput.value = ''
           renderInlineMeanings()
           renderS2SpanishPreview(sent, block)
@@ -1763,44 +1788,66 @@ function renderSentencePreview(sent, vocabItems) {
   })
 }
 
-// ===== 辞書ポップアップ =====
-let wordFormatIdCache = null
-async function getWordFormatId() {
-  if (wordFormatIdCache) return wordFormatIdCache
-  const { data } = await db.from('formats').select('id').eq('name', '単語').maybeSingle()
-  wordFormatIdCache = data?.id || null
-  return wordFormatIdCache
+// ===== 辞書・フラッシュカード自動登録 =====
+// フォーマット（単語／フレーズ／表現）のidを取得。なければ作成する
+const formatIdCache = {}
+async function getOrCreateFormatId(name) {
+  if (formatIdCache[name]) return formatIdCache[name]
+  const { data: existingFmt } = await db.from('formats').select('id').eq('name', name).maybeSingle()
+  if (existingFmt) { formatIdCache[name] = existingFmt.id; return existingFmt.id }
+  const session = await db.auth.getSession()
+  const { data: created, error } = await db.from('formats').insert({
+    name, user_id: session.data.session.user.id
+  }).select().single()
+  if (error) { console.error('フォーマット取得・作成エラー:', error); return null }
+  formatIdCache[name] = created.id
+  return created.id
 }
 
-// 辞書に新規登録する（Step2で選択中の意味をそのまま使う・非公開で作成）
-async function autoRegisterToDictionary(spanish, japanese) {
+// 見出し語（spanish）を辞書＋フラッシュカードへ自動登録・更新する
+// meaningsList: 登録済みの日本語の意味をすべて渡す（複数ある場合は1枚のカードにまとめて表示される）
+// 同じ見出し語（同じフォーマット）への同時呼び出しで重複登録が起きないよう、キーごとに直列化する
+const syncPending = {}
+async function autoSyncToDictionary(spanish, meaningsList, formatName) {
+  const key = `${formatName}:${spanish}`
+  const prev = syncPending[key] || Promise.resolve()
+  const task = prev.then(() => autoSyncToDictionaryInner(spanish, meaningsList, formatName))
+  syncPending[key] = task.catch(() => {})
+  return task
+}
+
+async function autoSyncToDictionaryInner(spanish, meaningsList, formatName) {
+  const list = (Array.isArray(meaningsList) ? meaningsList : [meaningsList]).filter(Boolean)
+  const japanese = list.join('、')
+  if (!spanish || !japanese) return null
+
   const session = await db.auth.getSession()
   const userId = session.data.session.user.id
-  const formatId = await getWordFormatId()
-  const { data: entry, error } = await db.from('dictionary_entries').insert({
-    format_id: formatId,
-    spanish,
-    japanese,
-    scope: 'draft',
-    word_data: {},
-    user_id: userId
-  }).select().single()
-  if (error) throw error
-  await db.from('lookup_forms').insert({
-    entry_id: entry.id,
-    form: spanish,
-    tense: null,
-    description: '見出し語'
-  })
-  if (japanese) await saveVocabMeaning(spanish, japanese)
-  return entry
-}
+  const formatId = await getOrCreateFormatId(formatName)
+  if (!formatId) return null
 
-// 既存の辞書エントリに紐付ける（lookup_formsにも登録し、以後「登録済み」判定されるようにする）
-async function linkToDictionaryEntry(spanish, entryId, sentId, token) {
-  const { data: existingForm } = await db.from('lookup_forms')
-    .select('id').eq('entry_id', entryId).eq('form', spanish).maybeSingle()
-  if (!existingForm) {
+  const { data: existingEntry } = await db.from('dictionary_entries')
+    .select('id, card_id')
+    .eq('spanish', spanish)
+    .eq('format_id', formatId)
+    .maybeSingle()
+
+  let entryId = existingEntry?.id || null
+  let cardId = existingEntry?.card_id || null
+
+  if (entryId) {
+    await db.from('dictionary_entries').update({ japanese }).eq('id', entryId)
+  } else {
+    const { data: entry, error } = await db.from('dictionary_entries').insert({
+      format_id: formatId,
+      spanish,
+      japanese,
+      scope: 'plus',
+      word_data: {},
+      user_id: userId
+    }).select().single()
+    if (error) { console.error('辞書自動登録エラー:', error); return null }
+    entryId = entry.id
     await db.from('lookup_forms').insert({
       entry_id: entryId,
       form: spanish,
@@ -1808,131 +1855,22 @@ async function linkToDictionaryEntry(spanish, entryId, sentId, token) {
       description: '見出し語'
     })
   }
-  if (sentId && token) {
-    await db.from('audio_sentence_vocab')
-      .update({ dictionary_entry_id: entryId })
-      .eq('sentence_id', sentId)
-      .eq('spanish', token.text)
-  }
-}
 
-function renderRegisteredEntryHtml(entry) {
-  return `
-    <div style="padding:12px 0">
-      <div style="font-size:1.1rem;margin-bottom:4px">${entry.spanish}</div>
-      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:12px">${entry.japanese}</div>
-      ${entry.example ? `<div style="font-size:0.85rem">${entry.example}</div>` : ''}
-      ${entry.scope === 'draft' ? '<div style="font-size:0.68rem;color:var(--accent);margin-top:8px">※ 非公開で登録されました。公開するには辞書側で編集してください</div>' : ''}
-    </div>
-    <button class="btn-new-dict" onclick="window.open('../../dictionary/new/word.html?id=${entry.id}','_blank')">辞書で編集する</button>
-  `
-}
-
-let dictPopupSpanish = null
-let dictPopupOnRegistered = null
-
-async function openDictPopup(spanish, status, entryId, selectedMeaning, onRegistered) {
-  document.getElementById('popup-dict-title').textContent = spanish
-  const content = document.getElementById('popup-dict-content')
-  content.innerHTML = '<div style="color:var(--muted);padding:12px">読み込み中...</div>'
-  openPopup('popup-dict-overlay')
-
-  dictPopupSpanish = spanish
-  dictPopupOnRegistered = onRegistered || null
-
-  if (status === 'registered' && entryId) {
-    const { data: entry } = await db.from('dictionary_entries')
-      .select('*, formats(name), parts_of_speech(name)').eq('id', entryId).single()
-    content.innerHTML = entry ? renderRegisteredEntryHtml(entry)
-      : '<div style="padding:12px;color:var(--muted)">詳細を取得できませんでした</div>'
+  // フラッシュカードも同期（1見出し語＝1カード。日本語欄には全ての意味をまとめて表示）
+  const cardPayload = { spanish, japanese, scope: 'plus', user_id: userId }
+  if (cardId) {
+    await db.from('cards').update(cardPayload).eq('id', cardId)
   } else {
-    content.innerHTML = `
-      <div class="dict-search-wrap">
-        <input type="text" id="dict-search-input" placeholder="原形や日本語で検索" value="${spanish}" />
-        <button class="btn-save-item" id="dict-search-btn">検索</button>
-      </div>
-      <div id="dict-search-results"></div>
-      <div style="margin-top:16px;padding-top:16px;border-top:1px solid color-mix(in srgb,var(--earth) 20%,transparent);display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:0.72rem;color:var(--muted)">
-          現在選択中の意味：${selectedMeaning ? `「${selectedMeaning}」` : '（Step2で意味を選択すると登録できます）'}
-        </div>
-        <button class="btn-new-dict" id="dict-auto-register-btn" ${selectedMeaning ? '' : 'disabled'}>この意味で辞書に登録する</button>
-        <button class="btn-new-dict" id="dict-new-btn">辞書で詳しく編集して登録する（品詞・活用など）</button>
-      </div>
-    `
-    document.getElementById('dict-search-btn').addEventListener('click', async () => {
-      const q = document.getElementById('dict-search-input').value.trim()
-      if (!q) return
-      const { data } = await db.from('dictionary_entries')
-        .select('*, formats(name)').or(`spanish.ilike.%${q}%,japanese.ilike.%${q}%`).limit(10)
-      renderDictResults(data || [])
-    })
-    document.getElementById('dict-auto-register-btn').addEventListener('click', async (e) => {
-      const btn = e.currentTarget
-      btn.disabled = true
-      btn.textContent = '登録中...'
-      try {
-        const info = currentDictVocabInfo
-        const entry = await autoRegisterToDictionary(spanish, selectedMeaning)
-        if (info && info.sentId && info.token) {
-          await db.from('audio_sentence_vocab')
-            .update({ dictionary_entry_id: entry.id })
-            .eq('sentence_id', info.sentId)
-            .eq('spanish', info.token.text)
-        }
-        if (dictPopupOnRegistered) dictPopupOnRegistered(entry.id)
-        document.getElementById('popup-dict-title').textContent = entry.spanish
-        content.innerHTML = renderRegisteredEntryHtml(entry)
-      } catch (err) {
-        console.error('辞書自動登録エラー:', err)
-        btn.disabled = false
-        btn.textContent = 'この意味で辞書に登録する'
-        alert('登録に失敗しました')
-      }
-    })
-    document.getElementById('dict-new-btn').addEventListener('click', () => {
-      const p = new URLSearchParams({ spanish, japanese: selectedMeaning || '' })
-      window.open(`../../dictionary/new/word.html?${p.toString()}`, '_blank')
-    })
-    const { data } = await db.from('dictionary_entries')
-      .select('*, formats(name)').or(`spanish.ilike.%${spanish}%,japanese.ilike.%${spanish}%`).limit(10)
-    renderDictResults(data || [])
+    const { data: card, error: cardError } = await db.from('cards').insert(cardPayload).select().single()
+    if (!cardError) {
+      cardId = card.id
+      await db.from('dictionary_entries').update({ card_id: cardId }).eq('id', entryId)
+    } else {
+      console.error('カード自動登録エラー:', cardError)
+    }
   }
-}
 
-function renderDictResults(results) {
-  const container = document.getElementById('dict-search-results')
-  if (!container) return
-  if (results.length === 0) {
-    container.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:0.85rem">見つかりませんでした</div>'
-    return
-  }
-  container.innerHTML = results.map(r => `
-    <div class="dict-result-item">
-      <div class="dict-result-spanish">${r.spanish}</div>
-      <div class="dict-result-japanese">${r.japanese}</div>
-      <button class="btn-link-dict" data-id="${r.id}">紐付ける</button>
-    </div>
-  `).join('')
-  container.querySelectorAll('.btn-link-dict').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const entryId = btn.dataset.id
-      const spanish = dictPopupSpanish
-      const info = currentDictVocabInfo
-      btn.disabled = true
-      btn.textContent = '紐付け中...'
-      try {
-        await linkToDictionaryEntry(spanish, entryId, info?.sentId, info?.token)
-        if (dictPopupOnRegistered) dictPopupOnRegistered(entryId)
-        closePopup('popup-dict-overlay')
-      } catch (err) {
-        console.error('紐付けエラー:', err)
-        btn.disabled = false
-        btn.textContent = '紐付ける'
-        alert('紐付けに失敗しました')
-      }
-    })
-  })
+  return entryId
 }
 
 // ===== トークン解析 =====
@@ -2169,7 +2107,6 @@ function openPopup(id) { document.getElementById(id).classList.add('open') }
 function closePopup(id) { document.getElementById(id).classList.remove('open') }
 
 document.getElementById('popup-vocab-close').addEventListener('click', () => closePopup('popup-vocab-overlay'))
-document.getElementById('popup-dict-close').addEventListener('click', () => closePopup('popup-dict-overlay'))
 
 // ===== ハンバーガー =====
 document.getElementById('burger-btn').addEventListener('click', () => {
